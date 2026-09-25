@@ -1,0 +1,1287 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b2025">
+<title>ไล่แขวง — ดูแขวงบนเส้นทางก่อนรับงานซ้อน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+      onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'">
+<style>
+/* =====================================================================
+   1. DESIGN TOKENS
+   สีมาจากป้ายจราจรไทย: เขียว = แขวงทางผ่านหลัก, เหลือง = แขวงใกล้เคียง, เทา = ผ่านแล้ว
+   ===================================================================== */
+:root{
+  --ink:#1b2025; --ink-2:#4b545b; --paper:#e6e9ec; --card:#fff; --line:#cdd3d8;
+  --green:#0b6b3a; --amber:#f2c12e; --amber-ink:#2b2200;
+  --grey:#c3c8c5; --grey-ink:#5d645f;
+  --route:#1746a2; --red:#c8321f;
+  --map-h:36svh;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:16px/1.4 Prompt,'Noto Sans Thai',Sarabun,system-ui,sans-serif}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--route);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* =====================================================================
+   2. LAYOUT — มือถือ: ค้นหา → แผนที่ (sticky) → ผลลัพธ์ | จอใหญ่: ซ้าย/ขวา
+   ===================================================================== */
+.app{min-height:100svh;display:flex;flex-direction:column}
+.search{position:relative;z-index:30;background:var(--card);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 14px}
+.mapwrap{position:sticky;top:0;z-index:10;height:var(--map-h);min-height:230px;background:#dde3e8;
+  border-bottom:1px solid var(--line)}
+#map{position:absolute;inset:0;isolation:isolate}
+.results{padding:14px 14px calc(env(safe-area-inset-bottom) + 28px)}
+@media (min-width:900px){
+  .app{display:grid;grid-template-columns:480px 1fr;grid-template-rows:auto 1fr;height:100svh;min-height:0}
+  .search{grid-column:1;grid-row:1}
+  .results{grid-column:1;grid-row:2;overflow:auto}
+  .mapwrap{grid-column:2;grid-row:1 / 3;position:relative;height:auto;border-bottom:0;border-left:1px solid var(--line)}
+  .sign{scroll-margin-top:12px}
+}
+
+/* =====================================================================
+   3. SEARCH PANEL
+   ===================================================================== */
+h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
+.tagline{margin:0;font-size:14px;color:var(--ink-2)}
+.fields{display:grid;grid-template-columns:1fr 48px;gap:8px;margin-top:10px}
+.fld{position:relative;min-width:0;display:flex;align-items:center;min-height:56px;border:2px solid var(--line);
+  border-radius:12px;background:#f2f4f6}
+.fld:focus-within{border-color:var(--ink);background:#fff}
+.fld.o{grid-column:1;grid-row:1}
+.fld.d{grid-column:1;grid-row:2}
+.dot{flex:none;width:14px;height:14px;margin-left:14px;border-radius:50%;background:var(--green)}
+.dot.drop{border-radius:3px;background:var(--red)}
+.dot.chk{background:var(--amber);box-shadow:inset 0 0 0 2px var(--amber-ink)}
+.fld input{flex:1;min-width:0;text-overflow:ellipsis;border:0;background:transparent;padding:12px 10px;font-size:20px;font-weight:500;outline:none}
+.fld input::placeholder{color:#8a949b;font-weight:400}
+.ic{flex:none;width:48px;height:48px;border:0;border-radius:10px;background:transparent;display:grid;place-items:center}
+.ic svg{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic:active{background:#dfe4e8}
+.ic.clr svg{stroke:#767f86}
+.ic.clr:active{background:#dfe4e8}
+.ic.side{grid-column:2;width:48px;height:56px;border:2px solid var(--line);background:#fff;border-radius:12px}
+.ic.loc{grid-row:1}
+.ic.swap{grid-row:2}
+.go{width:100%;min-height:58px;margin-top:10px;border:0;border-radius:14px;background:var(--ink);color:#fff;
+  font-size:20px;font-weight:700}
+.go:disabled{opacity:.55;cursor:progress}
+.quick2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.qbtn{min-height:48px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:15px;font-weight:700;color:var(--ink)}
+.qbtn:active{background:#eceff1}
+.status{min-height:1.4em;margin:8px 2px 0;font-size:15px;color:var(--ink-2)}
+.status.err{color:var(--red);font-weight:600}
+
+/* dropdown เลือกเขต */
+.sg{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;margin:0;padding:4px;list-style:none;
+  background:#fff;border:2px solid var(--ink);border-radius:12px;max-height:46vh;overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+  box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.sg li{display:flex;flex-direction:column;gap:1px;padding:10px 12px;border-radius:8px;min-height:56px;justify-content:center;cursor:pointer}
+.sg li b{font-size:20px;font-weight:600}
+.sg li span{font-size:15px;color:var(--ink-2)}
+.sg li.act,.sg li:hover{background:#e7eef9}
+
+/* =====================================================================
+   4. MAP OVERLAYS
+   ===================================================================== */
+.mapbtns{position:absolute;right:10px;top:10px;z-index:500;display:grid;gap:8px}
+.mbtn{min-height:44px;padding:0 14px;border:2px solid var(--ink);border-radius:22px;background:#fff;font-weight:600;font-size:15px}
+.mbtn[aria-pressed="true"]{background:var(--route);border-color:var(--route);color:#fff}
+.lbl{background:none;border:0}
+.lbl .lb{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;
+  font:600 12px/1.1 Prompt,'Noto Sans Thai',sans-serif;color:#083d21;
+  text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 5px #fff}
+.lbl .n{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;margin-right:4px;border-radius:9px;
+  background:var(--green);color:#fff;font-size:11px;text-shadow:none}
+.lbl.near .lb{color:#6b5200;font-weight:500;font-size:11px}
+.lbl.passed .lb{color:#7b827d}
+.lbl.passed .n{background:#8b918c}
+.zlow .lbl.near{display:none}
+.zmid .lbl.main .t{display:none}
+.zmid .lbl .n{margin-right:0}
+.pin .pb{position:absolute;transform:translate(-50%,calc(-100% - 6px));padding:4px 10px;border-radius:8px;color:#fff;
+  font:700 14px/1.2 Prompt,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.45);white-space:nowrap}
+.pin .pb::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0}
+.pin.o .pb{background:var(--green)} .pin.o .pb::after{border-top-color:var(--green)}
+.pin.d .pb{background:var(--red)}   .pin.d .pb::after{border-top-color:var(--red)}
+.me{width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:#1a73e8;border:3px solid #fff;
+  box-shadow:0 0 0 2px rgba(26,115,232,.35),0 1px 5px rgba(0,0,0,.4);animation:pulse 1.8s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 2px rgba(26,115,232,.5),0 1px 5px rgba(0,0,0,.4)}
+  100%{box-shadow:0 0 0 16px rgba(26,115,232,0),0 1px 5px rgba(0,0,0,.4)}}
+@media (prefers-reduced-motion:reduce){.me{animation:none}.sign{transition:none!important}}
+
+/* =====================================================================
+   5. RESULTS: สรุป, GPS, เช็คงานซ้อน, การ์ดป้ายแขวง
+   ===================================================================== */
+.empty{margin:6px 2px;font-size:17px;color:var(--ink-2)}
+.sum{margin:0 0 10px;font-size:20px;font-weight:500}
+.sum b{font-weight:700;font-size:26px}
+.warn{margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff1cc;border:2px solid var(--amber-ink);
+  font-size:16px;font-weight:600;color:var(--amber-ink)}
+.gps{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.btn{min-height:52px;padding:0 18px;border:2px solid var(--ink);border-radius:12px;background:#fff;font-size:17px;font-weight:700}
+.btn.on{background:var(--route);border-color:var(--route);color:#fff}
+.gps-t{flex:1;font-size:15px;color:var(--ink-2);line-height:1.3}
+.gps-t b{color:var(--ink);font-size:17px}
+.check{margin:0 0 18px;padding:12px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+.check label{display:block;margin:0 0 8px;font-size:16px;font-weight:600}
+.verdict{margin-top:10px;padding:12px 14px;border-radius:12px}
+.verdict b{display:block;font-size:20px;font-weight:700;line-height:1.25}
+.verdict span{display:block;margin-top:2px;font-size:15px}
+.verdict.ok{background:#d9f0e2;color:#064d29}
+.verdict.warn{background:#fff1cc;color:var(--amber-ink)}
+.verdict.no{background:#f9dcd7;color:#7d1d10}
+h2{margin:20px 0 10px;font-size:18px;font-weight:600}
+.h2row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:22px 0 10px}
+.h2row h2{margin:0}
+.seg{display:flex;border:2px solid var(--ink);border-radius:12px;overflow:hidden;background:#fff}
+.seg button{min-width:56px;min-height:44px;padding:0 10px;border:0;background:#fff;font-weight:600;font-size:16px}
+.seg button+button{border-left:2px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.hint{margin:0 0 10px;font-size:14px;color:var(--ink-2)}
+
+/* การ์ดป้าย */
+.signs{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.sign{position:relative;display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:12px;min-height:80px;
+  padding:14px 16px;border-radius:14px;background:var(--green);color:#fff;
+  outline:2px solid rgba(255,255,255,.92);outline-offset:-6px;cursor:pointer;
+  scroll-margin-top:calc(var(--map-h) + 12px);transition:background-color .35s,color .35s}
+.sign .no{width:48px;height:48px;border-radius:10px;background:#fff;color:var(--green);display:grid;place-items:center;
+  font-size:28px;font-weight:700}
+.sign .nm{display:block;font-size:26px;font-weight:700;line-height:1.2;overflow-wrap:break-word}
+.sign .ds{display:block;margin-top:2px;font-size:15px;opacity:.94}
+.sign .km{text-align:right;font-size:19px;font-weight:600;white-space:nowrap;line-height:1.15}
+.sign .km small{display:block;font-size:12px;font-weight:400;opacity:.88}
+.tags{display:flex;gap:4px;justify-content:flex-end;margin-bottom:4px}
+.tags:empty{display:none}
+.tag{display:inline-block;line-height:1.6;padding:1px 9px;border-radius:99px;background:#fff;color:var(--ink);font-size:12px;font-weight:600}
+.tag:empty{display:none}
+.sign.here{box-shadow:0 0 0 4px #fff,0 0 0 8px var(--route)}
+.sign.passed{background:var(--grey);color:var(--grey-ink);outline-color:rgba(255,255,255,.7)}
+.sign.passed .no{background:#eef0ee;color:var(--grey-ink)}
+.seq .sign+.sign::before{content:"";position:absolute;left:38px;top:-12px;height:12px;border-left:3px dashed #8a949b}
+.sign.near{grid-template-columns:1fr auto;min-height:68px;background:var(--amber);color:var(--amber-ink);
+  outline-color:rgba(43,34,0,.75)}
+.sign.near .nm{font-size:22px}
+.sign.near.passed{background:var(--grey);color:var(--grey-ink);outline-color:rgba(255,255,255,.7)}
+.sign.near.here{box-shadow:0 0 0 4px #fff,0 0 0 8px var(--route)}
+.foot{margin-top:28px;font-size:14px;color:var(--ink-2)}
+.foot summary{min-height:44px;display:flex;align-items:center;font-weight:600;cursor:pointer}
+.foot p{margin:6px 0}
+.foot .btn{min-height:44px;font-size:15px;margin-top:6px}
+.fatal{margin:20px 14px;padding:16px;border-radius:12px;background:#f9dcd7;color:#7d1d10;font-weight:600}
+
+/* =====================================================================
+   6. ฐานข้อมูล — เขต→แขวง แบบไทม์ไลน์ ไล่ตามเขตที่อยู่ใกล้กัน (สำหรับมือใหม่ศึกษาพื้นที่)
+   ===================================================================== */
+.dbview{position:fixed;inset:0;z-index:900;background:var(--paper);display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .22s ease}
+.dbview.open{transform:translateX(0)}
+.dbhead{flex:none;background:var(--card);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 12px;display:grid;gap:10px}
+.dbtop{display:flex;align-items:center;gap:10px}
+.dbtop h2{margin:0;font-size:20px;font-weight:700;flex:1}
+.dbback{flex:none;width:44px;height:44px;border:2px solid var(--line);border-radius:11px;background:#fff}
+.dbback svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dbfld{position:relative;display:flex;align-items:center;min-height:52px;border:2px solid var(--line);
+  border-radius:12px;background:#f2f4f6}
+.dbfld:focus-within{border-color:var(--ink);background:#fff}
+.dbfld input{flex:1;min-width:0;border:0;background:transparent;padding:10px 14px;font-size:18px;outline:none}
+.dbfld .clr{flex:none;width:44px;height:44px;border:0;background:transparent}
+.dbfld .clr svg{width:22px;height:22px;stroke:#767f86;fill:none;stroke-width:2;stroke-linecap:round}
+.dblegend{display:flex;gap:14px;font-size:13px;color:var(--ink-2)}
+.dblegend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.dblegend .bk b{background:var(--green)}
+.dblegend .pm b{background:#5b7fd6}
+.dbseg{width:100%}
+.dbseg button{flex:1}
+.dbfacets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dbsel{min-height:46px;padding:0 10px;border:2px solid var(--line);border-radius:11px;background:#fff;font-size:15px;color:var(--ink)}
+.dblist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px calc(env(safe-area-inset-bottom) + 24px)}
+.gprov{margin:22px 0 4px;padding-bottom:6px;border-bottom:3px solid var(--ink);font-size:19px;font-weight:700}
+.gprov:first-child{margin-top:0}
+.gprov .gc{margin-left:8px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.gdist{display:flex;align-items:baseline;gap:8px;margin:16px 0 7px}
+.gdist .gn{font-size:16px;font-weight:700}
+.gdist .gc{font-size:13px;color:var(--ink-2)}
+.gchips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 6px}
+.chip{min-height:38px;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:0 14px;
+  font-size:14.5px;font-weight:600;color:var(--ink)}
+.chip:active{background:#e7eef9;border-color:var(--route)}
+.dbempty{margin:20px 4px;color:var(--ink-2);font-size:15px}
+.dcard{margin:0 0 10px;border-radius:14px;background:var(--card);border:1px solid var(--line);overflow:hidden}
+.dcard[open]{border-color:#9aa4ad}
+.dcard summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:64px;padding:10px 14px;cursor:pointer}
+.dcard summary::-webkit-details-marker{display:none}
+.dnum{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff}
+.dcard.bk .dnum{background:var(--green)}
+.dcard.pm .dnum{background:#5b7fd6}
+.dtxt{flex:1;min-width:0}
+.dtxt .dn{display:block;font-size:19px;font-weight:700;overflow-wrap:break-word}
+.dtxt .dp{display:block;margin-top:1px;font-size:13px;color:var(--ink-2)}
+.dcnt{flex:none;font-size:13px;font-weight:600;color:var(--ink-2);background:#eef1f3;border-radius:99px;padding:3px 10px}
+.dcaret{flex:none;width:20px;height:20px;stroke:#8a949b;fill:none;stroke-width:2;transition:transform .18s}
+.dcard[open] .dcaret{transform:rotate(180deg)}
+.dmembers{list-style:none;margin:0;padding:2px 10px 10px;display:grid;gap:6px}
+.dmembers li{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;
+  padding:8px 12px;border-radius:10px;background:#f2f4f6}
+.dmembers li b{font-size:16px;font-weight:600;overflow-wrap:break-word}
+.dmembers .mv{flex:none;min-width:44px;min-height:36px;padding:0 12px;border:0;border-radius:9px;background:#fff;
+  border:1.5px solid var(--line);font-size:13px;font-weight:600;color:var(--route)}
+.dhit{outline:3px solid var(--route) !important}
+@media (min-width:900px){.dbview{max-width:520px;left:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================== HTML STRUCTURE 1: ค้นหา ================== -->
+  <header class="search">
+    <h1>ไล่แขวง</h1>
+    <p class="tagline">ดูว่าเส้นทางผ่านแขวงไหนบ้าง ก่อนรับงานซ้อน</p>
+
+    <div class="fields">
+      <div class="fld o">
+        <span class="dot" aria-hidden="true"></span>
+        <input id="in-o" type="text" placeholder="จุดรับงาน เช่น ศิริราช" autocomplete="off" autocapitalize="off"
+               spellcheck="false" enterkeyhint="next" aria-label="จุดรับงานหลัก">
+        <button class="ic clr" id="clr-o" type="button" aria-label="ล้างจุดรับ" hidden>
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <ul class="sg" id="sg-o" role="listbox" hidden></ul>
+      </div>
+      <div class="fld d">
+        <span class="dot drop" aria-hidden="true"></span>
+        <input id="in-d" type="text" placeholder="จุดส่งงาน เช่น บางมด" autocomplete="off" autocapitalize="off"
+               spellcheck="false" enterkeyhint="go" aria-label="จุดส่งงานหลัก">
+        <button class="ic clr" id="clr-d" type="button" aria-label="ล้างจุดส่ง" hidden>
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <ul class="sg" id="sg-d" role="listbox" hidden></ul>
+      </div>
+      <button class="ic side loc" id="btn-loc" type="button" aria-label="ใช้ตำแหน่งปัจจุบันเป็นจุดรับ">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <button class="ic side swap" id="btn-swap" type="button" aria-label="สลับจุดรับกับจุดส่ง">
+        <svg viewBox="0 0 24 24"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4"/></svg>
+      </button>
+    </div>
+    <button class="go" id="btn-go" type="button">คำนวณเส้นทาง</button>
+    <div class="quick2">
+      <button class="qbtn" id="btn-db" type="button">รายชื่อแขวง</button>
+      <button class="qbtn" id="btn-reset" type="button">รีเซ็ทเส้นทาง</button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </header>
+
+  <!-- ================== HTML STRUCTURE 2: แผนที่ ================== -->
+  <div class="mapwrap">
+    <div id="map" aria-label="แผนที่เส้นทางและขอบเขตแขวง"></div>
+    <div class="mapbtns">
+      <button class="mbtn" id="btn-fit" type="button">ดูทั้งเส้น</button>
+      <button class="mbtn" id="btn-follow" type="button" aria-pressed="false">ตามตำแหน่งฉัน</button>
+    </div>
+  </div>
+
+  <!-- ================== HTML STRUCTURE 3: ผลลัพธ์ ================== -->
+  <main class="results" id="results">
+    <p class="empty" id="empty">พิมพ์ชื่อแขวงของจุดรับและจุดส่ง แล้วกดคำนวณเส้นทาง ระบบจะไล่แขวงที่ต้องขับผ่านตามลำดับให้</p>
+
+    <div id="out" hidden>
+      <p class="sum" id="sum"></p>
+      <div class="warn" id="warn" hidden></div>
+
+      <div class="gps">
+        <button class="btn" id="btn-gps" type="button">เริ่มติดตาม GPS</button>
+        <div class="gps-t" id="gps-t">เปิด GPS เพื่อให้แขวงที่ผ่านไปแล้วเป็นสีเทาอัตโนมัติ</div>
+      </div>
+
+      <section class="check" aria-label="เช็คงานซ้อน">
+        <label for="in-c">งานซ้อนเด้งเข้ามาที่แขวง…</label>
+        <div class="fld">
+          <span class="dot chk" aria-hidden="true"></span>
+          <input id="in-c" type="text" placeholder="พิมพ์ชื่อแขวงจุดรับของงานซ้อน" autocomplete="off"
+                 autocapitalize="off" spellcheck="false" aria-label="แขวงจุดรับของงานซ้อน">
+          <button class="ic clr" id="clr-c" type="button" aria-label="ล้างช่องเช็คงานซ้อน" hidden>
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+          <ul class="sg" id="sg-c" role="listbox" hidden></ul>
+        </div>
+        <div class="verdict" id="verdict" hidden></div>
+      </section>
+
+      <h2>แขวงที่ต้องผ่าน</h2>
+      <ol class="signs seq" id="list-main"></ol>
+
+      <div class="h2row">
+        <h2>แขวงใกล้เคียง</h2>
+        <div class="seg" role="group" aria-label="รัศมีเผื่อ">
+          <button type="button" data-r="1" aria-pressed="false">1 กม.</button>
+          <button type="button" data-r="1.5" aria-pressed="true">1.5 กม.</button>
+          <button type="button" data-r="2" aria-pressed="false">2 กม.</button>
+        </div>
+      </div>
+      <p class="hint">รับงานได้ถ้าเบี่ยงไม่ไกล — เรียงตามตำแหน่งบนเส้นทาง</p>
+      <ol class="signs" id="list-near"></ol>
+    </div>
+
+    <details class="foot">
+      <summary>ข้อมูลและข้อจำกัด</summary>
+      <p>เส้นทางคำนวณจาก OSRM โปรไฟล์รถยนต์ พร้อมสั่งหลบทางด่วน จึงเป็นเส้นประมาณการ ไม่ใช่เส้นที่แอปรับงานนำทางจริง</p>
+      <p>ขอบเขตแขวงจาก OCHA COD-AB ประเทศไทย (ปี 2019, ผ่าน piyayut-ch/mapthai) ครอบคลุม กทม. และ 5 จังหวัดปริมณฑล
+         เป็นรูปหยาบ ใกล้เส้นแบ่งอาจคลาดเคลื่อนได้หลักร้อยเมตร กทม. มี 169 จาก 180 แขวง แขวงที่แยกใหม่ภายหลัง
+         (บางนา บางบอน สวนหลวง สะพานสูง ดินแดง พญาไท พระโขนง) ยังรวมเป็นพื้นที่เดียว</p>
+      <button class="btn" id="btn-sim" type="button">ลองจำลองการขับ</button>
+    </details>
+  </main>
+
+  <!-- ================== ฐานข้อมูล เขต→แขวง (แผงเลื่อนทับ) ================== -->
+  <section class="dbview" id="dbview" aria-label="ฐานข้อมูลแขวงทั้งหมด" aria-hidden="true">
+    <div class="dbhead">
+      <div class="dbtop">
+        <button class="dbback" id="db-back" type="button" aria-label="ปิดฐานข้อมูล">
+          <svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></svg>
+        </button>
+        <h2>ฐานข้อมูลแขวง/ตำบล</h2>
+      </div>
+      <div class="dbfld">
+        <input id="db-q" type="text" placeholder="ค้นหาเขต/อำเภอ หรือ แขวง/ตำบล" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button class="clr" id="db-clr" type="button" aria-label="ล้างคำค้นหา" hidden>
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div class="seg dbseg" id="dbseg" role="group" aria-label="มุมมอง">
+        <button type="button" data-view="ov" aria-pressed="true">ภาพรวม</button>
+        <button type="button" data-view="tl" aria-pressed="false">ไทม์ไลน์</button>
+      </div>
+      <div class="dbfacets" id="dbfacets">
+        <select id="db-prov" class="dbsel" aria-label="เลือกจังหวัด">
+          <option value="">ทุกจังหวัด</option>
+        </select>
+        <select id="db-dist" class="dbsel" aria-label="เลือกเขตหรืออำเภอ">
+          <option value="">ทุกเขต/อำเภอ</option>
+        </select>
+      </div>
+      <div class="dblegend">
+        <span class="bk"><b></b>กรุงเทพมหานคร</span>
+        <span class="pm"><b></b>ปริมณฑล 5 จังหวัด</span>
+      </div>
+    </div>
+    <div class="dblist" id="dbgrid"></div>
+    <div class="dblist" id="dblist" hidden></div>
+  </section>
+</div>
+
+<script>
+/* =====================================================================
+   DATA: ขอบเขตแขวง/ตำบล กทม. + 5 จังหวัดปริมณฑล (GeoJSON แบบย่อ)
+   แต่ละ feature: c=รหัส, s=แขวง/ตำบล, d=เขต/อำเภอ, p=รหัสจังหวัด, x=ชื่อแขวงที่แยกใหม่แต่ยังรวมอยู่ในรูปนี้
+   ===================================================================== */
+const EMBEDDED = {"type":"FeatureCollection","features":[{"type":"Feature","properties":{"c":"740310","s":"อำแพง","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2279,13.6045],[100.2132,13.6253],[100.1518,13.5961],[100.1757,13.5819],[100.2279,13.6045]]]}},{"type":"Feature","properties":{"c":"100502","s":"อนุสาวรีย์","d":"บางเขน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6231,13.883],[100.6111,13.8998],[100.5948,13.8876],[100.5865,13.8589],[100.5867,13.8583],[100.5899,13.8439],[100.619,13.8485],[100.6231,13.883]]]}},{"type":"Feature","properties":{"c":"102009","s":"อรุณอมรินทร์","d":"บางกอกน้อย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4684,13.7875],[100.4659,13.7872],[100.4667,13.7815],[100.4677,13.7797],[100.4753,13.7657],[100.4893,13.7598],[100.491,13.7619],[100.4819,13.7734],[100.4684,13.7875]]]}},{"type":"Feature","properties":{"c":"100804","s":"บ้านบาตร","d":"ป้อมปราบศัตรูพ่าย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5097,13.7565],[100.506,13.7564],[100.5057,13.7562],[100.5055,13.7538],[100.5041,13.7477],[100.5039,13.7468],[100.5057,13.7456],[100.507,13.7481],[100.5087,13.7519],[100.5097,13.7565]]]}},{"type":"Feature","properties":{"c":"740104","s":"บ้านบ่อ","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2151,13.4653],[100.1875,13.5255],[100.1706,13.5198],[100.1872,13.4584],[100.2151,13.4653]]]}},{"type":"Feature","properties":{"c":"130104","s":"บ้านฉาง","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5244,14.0319],[100.4966,14.0471],[100.4896,14.026],[100.5284,13.9914],[100.5344,13.9956],[100.5244,14.0319]]]}},{"type":"Feature","properties":{"c":"102005","s":"บ้านช่างหล่อ","d":"บางกอกน้อย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4842,13.7468],[100.473,13.7629],[100.4705,13.7431],[100.4802,13.746],[100.4842,13.7468]]]}},{"type":"Feature","properties":{"c":"110502","s":"บ้านคลองสวน","d":"พระสมุทรเจดีย์","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.4769,13.603],[100.4546,13.6051],[100.4466,13.5409],[100.5041,13.5529],[100.5092,13.5768],[100.5115,13.5969],[100.4769,13.603]]]}},{"type":"Feature","properties":{"c":"130103","s":"บ้านกลาง","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5573,14.0233],[100.5389,14.0263],[100.5398,14.0023],[100.5673,13.9897],[100.58,14.0025],[100.5573,14.0233]]]}},{"type":"Feature","properties":{"c":"740115","s":"บ้านเกาะ","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2706,13.605],[100.2625,13.6083],[100.2279,13.6045],[100.1757,13.5819],[100.1859,13.5756],[100.1942,13.547],[100.1987,13.5487],[100.272,13.591],[100.2706,13.605]]]}},{"type":"Feature","properties":{"c":"130105","s":"บ้านกระแชง","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5666,14.0387],[100.5544,14.0422],[100.5467,14.0348],[100.5429,14.03],[100.5389,14.0263],[100.5573,14.0233],[100.5644,14.0313],[100.5666,14.0387]]]}},{"type":"Feature","properties":{"c":"730405","s":"บ้านหลวง","d":"ดอนตูม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1747,13.9244],[100.1339,13.9161],[100.1258,13.9087],[100.1421,13.8943],[100.1538,13.8994],[100.1597,13.9086],[100.1751,13.9227],[100.1747,13.9244]]]}},{"type":"Feature","properties":{"c":"120306","s":"บ้านใหม่","d":"บางใหญ่","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3418,13.8834],[100.2968,13.8696],[100.3133,13.8348],[100.3612,13.8424],[100.3629,13.8803],[100.3418,13.8834]]]}},{"type":"Feature","properties":{"c":"120603","s":"บ้านใหม่","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5675,13.9512],[100.539,13.9557],[100.5227,13.9435],[100.5318,13.9084],[100.557,13.9063],[100.5589,13.9145],[100.5636,13.9345],[100.5675,13.9512]]]}},{"type":"Feature","properties":{"c":"130102","s":"บ้านใหม่","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5702,13.979],[100.5337,13.9667],[100.539,13.9557],[100.5675,13.9512],[100.5676,13.9516],[100.5716,13.9728],[100.5702,13.979]]]}},{"type":"Feature","properties":{"c":"730615","s":"บ้านใหม่","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2502,13.7056],[100.2305,13.7079],[100.2242,13.6814],[100.2418,13.678],[100.2603,13.6843],[100.2602,13.6847],[100.2502,13.7056]]]}},{"type":"Feature","properties":{"c":"130708","s":"บ้านงิ้ว","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5552,14.0834],[100.5455,14.0974],[100.5272,14.0855],[100.524,14.0767],[100.5324,14.0665],[100.5552,14.0834]]]}},{"type":"Feature","properties":{"c":"130707","s":"บ้านปทุม","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5893,14.0742],[100.5861,14.0961],[100.5552,14.0834],[100.5324,14.0665],[100.5455,14.056],[100.5532,14.0508],[100.5851,14.0733],[100.5893,14.0742]]]}},{"type":"Feature","properties":{"c":"740301","s":"บ้านแพ้ว","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.1036,13.6496],[100.0769,13.6574],[100.0969,13.5846],[100.131,13.602],[100.1036,13.6496]]]}},{"type":"Feature","properties":{"c":"100110","s":"บ้านพานถม","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5077,13.76],[100.5011,13.7669],[100.4986,13.7627],[100.5002,13.7617],[100.5057,13.7562],[100.506,13.7564],[100.5077,13.76]]]}},{"type":"Feature","properties":{"c":"110202","s":"บ้านระกาศ","d":"บางบ่อ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.8901,13.5646],[100.9176,13.6417],[100.8994,13.6478],[100.8978,13.6408],[100.8626,13.5467],[100.8793,13.5467],[100.8901,13.5646]]]}},{"type":"Feature","properties":{"c":"730125","s":"บ้านยาง","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9437,13.8892],[99.924,13.8998],[99.9095,13.8766],[99.9036,13.8484],[99.9156,13.8443],[99.9569,13.8356],[99.9437,13.8892]]]}},{"type":"Feature","properties":{"c":"102503","s":"บางบำหรุ","d":"บางพลัด","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4944,13.7846],[100.4684,13.7875],[100.4819,13.7734],[100.4944,13.7846]]]}},{"type":"Feature","properties":{"c":"110201","s":"บางบ่อ","d":"บางบ่อ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.8978,13.6408],[100.8526,13.6451],[100.8325,13.5786],[100.8476,13.5506],[100.8626,13.5467],[100.8978,13.6408]]]}},{"type":"Feature","properties":{"c":"105001","s":"บางบอน","d":"บางบอน","p":10,"x":["บางบอนเหนือ","บางบอนใต้","คลองบางพราน","คลองบางบอน"]},"geometry":{"type":"Polygon","coordinates":[[[100.4468,13.6826],[100.4377,13.6937],[100.4278,13.6876],[100.4068,13.6764],[100.3848,13.6714],[100.3468,13.6553],[100.3502,13.6405],[100.3765,13.6197],[100.4468,13.6826]]]}},{"type":"Feature","properties":{"c":"120402","s":"บางบัวทอง","d":"บางบัวทอง","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4246,13.9191],[100.4265,13.9236],[100.3558,14.0004],[100.3527,13.9985],[100.3496,13.9966],[100.3562,13.9499],[100.4155,13.9171],[100.4246,13.9191]]]}},{"type":"Feature","properties":{"c":"100905","s":"บางจาก","d":"พระโขนง","p":10,"x":["พระโขนงใต้"]},"geometry":{"type":"Polygon","coordinates":[[[100.6341,13.7008],[100.6057,13.7065],[100.6017,13.7047],[100.5839,13.6961],[100.5879,13.6916],[100.5888,13.683],[100.6402,13.6779],[100.6341,13.7008]]]}},{"type":"Feature","properties":{"c":"102206","s":"บางจาก","d":"ภาษีเจริญ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.458,13.7344],[100.4459,13.7308],[100.4503,13.7225],[100.4549,13.7234],[100.458,13.7344]]]}},{"type":"Feature","properties":{"c":"110403","s":"บางจาก","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5514,13.6186],[100.5417,13.6285],[100.5204,13.6088],[100.521,13.6051],[100.5409,13.609],[100.5514,13.6186]]]}},{"type":"Feature","properties":{"c":"110304","s":"บางโฉลง","d":"บางพลี","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.7914,13.6619],[100.7424,13.6496],[100.718,13.6284],[100.7204,13.6031],[100.7748,13.5963],[100.7794,13.595],[100.7914,13.6619]]]}},{"type":"Feature","properties":{"c":"104603","s":"บางชัน","d":"คลองสามวา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7297,13.8365],[100.7293,13.8648],[100.6804,13.8588],[100.6755,13.8564],[100.674,13.8522],[100.6968,13.8155],[100.7297,13.8365]]]}},{"type":"Feature","properties":{"c":"730607","s":"บางช้าง","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2071,13.7208],[100.1714,13.723],[100.1817,13.689],[100.1987,13.6771],[100.2242,13.6814],[100.2305,13.7079],[100.228,13.7088],[100.2071,13.7208]]]}},{"type":"Feature","properties":{"c":"101907","s":"บางเชือกหนัง","d":"ตลิ่งชัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4566,13.7435],[100.4066,13.7587],[100.4062,13.7494],[100.4134,13.7479],[100.4323,13.7405],[100.4566,13.7435]]]}},{"type":"Feature","properties":{"c":"102202","s":"บางด้วน","d":"ภาษีเจริญ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4459,13.7308],[100.4327,13.7302],[100.425,13.7291],[100.4258,13.7152],[100.4503,13.7225],[100.4459,13.7308]]]}},{"type":"Feature","properties":{"c":"110113","s":"บางด้วน","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5858,13.6293],[100.5728,13.6338],[100.5712,13.6109],[100.5896,13.608],[100.5858,13.6293]]]}},{"type":"Feature","properties":{"c":"130109","s":"บางเดื่อ","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5269,13.9886],[100.4499,14.0156],[100.4703,13.9935],[100.5059,13.9777],[100.527,13.9747],[100.5269,13.9886]]]}},{"type":"Feature","properties":{"c":"110406","s":"บางหัวเสือ","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5688,13.6373],[100.5648,13.6408],[100.5417,13.6285],[100.5514,13.6186],[100.5688,13.6373]]]}},{"type":"Feature","properties":{"c":"110409","s":"บางกะเจ้า","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5642,13.6843],[100.5714,13.7031],[100.5549,13.7055],[100.5525,13.6897],[100.5642,13.6843]]]}},{"type":"Feature","properties":{"c":"130112","s":"บางกะดี","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5673,13.9897],[100.5398,14.0023],[100.5344,13.9956],[100.5284,13.9914],[100.5269,13.9886],[100.527,13.9747],[100.5337,13.9667],[100.5702,13.979],[100.5673,13.9897]]]}},{"type":"Feature","properties":{"c":"110302","s":"บางแก้ว","d":"บางพลี","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6669,13.6682],[100.6538,13.669],[100.6448,13.6536],[100.6291,13.6288],[100.6706,13.6139],[100.6983,13.6563],[100.6669,13.6682]]]}},{"type":"Feature","properties":{"c":"730305","s":"บางแก้ว","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1779,13.7474],[100.1679,13.8068],[100.1614,13.8017],[100.1575,13.79],[100.1604,13.7408],[100.1785,13.7446],[100.1779,13.7474]]]}},{"type":"Feature","properties":{"c":"730321","s":"บางแก้วฟ้า","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.256,13.9053],[100.1993,13.9124],[100.2202,13.886],[100.2633,13.8779],[100.2561,13.9045],[100.256,13.9053]]]}},{"type":"Feature","properties":{"c":"101702","s":"บางกะปิ","d":"ห้วยขวาง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5966,13.7596],[100.5948,13.764],[100.5865,13.7621],[100.565,13.7551],[100.5633,13.7479],[100.5707,13.7465],[100.5982,13.7411],[100.6013,13.7481],[100.6041,13.7512],[100.5966,13.7596]]]}},{"type":"Feature","properties":{"c":"104001","s":"บางแค","d":"บางแค","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4068,13.6764],[100.4278,13.6876],[100.4259,13.7124],[100.4068,13.7108],[100.4068,13.6764]]]}},{"type":"Feature","properties":{"c":"104002","s":"บางแคเหนือ","d":"บางแค","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.425,13.7291],[100.4178,13.7312],[100.365,13.7263],[100.3735,13.7081],[100.4068,13.7108],[100.4259,13.7124],[100.4258,13.7152],[100.425,13.7291]]]}},{"type":"Feature","properties":{"c":"730102","s":"บางแขม","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0484,13.7773],[100.0332,13.8044],[100.0092,13.7947],[100.0221,13.7502],[100.0333,13.6947],[100.0579,13.7567],[100.0484,13.7773]]]}},{"type":"Feature","properties":{"c":"120204","s":"บางขนุน","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.466,13.8253],[100.4637,13.8272],[100.445,13.8086],[100.4542,13.8033],[100.4715,13.8159],[100.466,13.8253]]]}},{"type":"Feature","properties":{"c":"130106","s":"บางขะแยง","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.527,13.9747],[100.5059,13.9777],[100.5227,13.9435],[100.539,13.9557],[100.5337,13.9667],[100.527,13.9747]]]}},{"type":"Feature","properties":{"c":"120103","s":"บางเขน","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5436,13.8496],[100.5492,13.873],[100.5356,13.8679],[100.5266,13.8569],[100.5047,13.826],[100.5073,13.8214],[100.5436,13.8496]]]}},{"type":"Feature","properties":{"c":"103103","s":"บางโคล่","d":"บางคอแหลม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5299,13.7025],[100.5146,13.7049],[100.5128,13.7022],[100.4999,13.6869],[100.5061,13.6857],[100.517,13.6827],[100.5317,13.6982],[100.5299,13.7025]]]}},{"type":"Feature","properties":{"c":"103502","s":"บางค้อ","d":"จอมทอง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4692,13.716],[100.4599,13.7139],[100.4559,13.7084],[100.4655,13.703],[100.4821,13.6939],[100.4825,13.6948],[100.4764,13.7112],[100.4692,13.716]]]}},{"type":"Feature","properties":{"c":"103101","s":"บางคอแหลม","d":"บางคอแหลม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5128,13.7022],[100.4986,13.7051],[100.4922,13.7009],[100.49,13.6953],[100.4999,13.6869],[100.5128,13.7022]]]}},{"type":"Feature","properties":{"c":"110404","s":"บางครุ","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5302,13.6507],[100.5169,13.6378],[100.5204,13.6088],[100.5417,13.6285],[100.5341,13.6493],[100.5302,13.6507]]]}},{"type":"Feature","properties":{"c":"120404","s":"บางคูรัด","d":"บางบัวทอง","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3729,13.9246],[100.3391,13.9287],[100.3306,13.9215],[100.3418,13.8834],[100.3629,13.8803],[100.3719,13.9116],[100.3729,13.9246]]]}},{"type":"Feature","properties":{"c":"130107","s":"บางคูวัด","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4703,13.9935],[100.4623,13.9717],[100.4874,13.9451],[100.5018,13.9367],[100.5227,13.9435],[100.5059,13.9777],[100.4703,13.9935]]]}},{"type":"Feature","properties":{"c":"120206","s":"บางคูเวียง","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4276,13.8339],[100.4255,13.8367],[100.403,13.824],[100.4132,13.8052],[100.4246,13.8176],[100.4303,13.8322],[100.4276,13.8339]]]}},{"type":"Feature","properties":{"c":"120205","s":"บางขุนกอง","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4591,13.8301],[100.4303,13.8322],[100.4246,13.8176],[100.445,13.8086],[100.4637,13.8272],[100.4591,13.8301]]]}},{"type":"Feature","properties":{"c":"102006","s":"บางขุนนนท์","d":"บางกอกน้อย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4753,13.7657],[100.4677,13.7797],[100.4567,13.7759],[100.473,13.7629],[100.4753,13.7657]]]}},{"type":"Feature","properties":{"c":"100111","s":"บางขุนพรหม","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5094,13.7637],[100.5039,13.7698],[100.5011,13.7669],[100.5077,13.76],[100.5094,13.7637]]]}},{"type":"Feature","properties":{"c":"102007","s":"บางขุนศรี","d":"บางกอกน้อย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4705,13.7431],[100.473,13.7629],[100.4567,13.7759],[100.4621,13.7444],[100.4705,13.7431]]]}},{"type":"Feature","properties":{"c":"103501","s":"บางขุนเทียน","d":"จอมทอง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4655,13.703],[100.4559,13.7084],[100.4377,13.6937],[100.4468,13.6826],[100.4485,13.6817],[100.4655,13.703]]]}},{"type":"Feature","properties":{"c":"110412","s":"บางกอบัว","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5821,13.6975],[100.5714,13.7031],[100.5642,13.6843],[100.5719,13.6835],[100.5879,13.6916],[100.5839,13.6961],[100.5821,13.6975]]]}},{"type":"Feature","properties":{"c":"730302","s":"บางกระเบา","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.191,13.7711],[100.1817,13.805],[100.1746,13.8059],[100.191,13.7711]]]}},{"type":"Feature","properties":{"c":"130710","s":"บางกระบือ","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5514,14.1111],[100.5407,14.1181],[100.5369,14.118],[100.5009,14.0945],[100.5272,14.0855],[100.5455,14.0974],[100.5514,14.1111]]]}},{"type":"Feature","properties":{"c":"740116","s":"บางกระเจ้า","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2317,13.5442],[100.1987,13.5487],[100.1942,13.547],[100.1875,13.5255],[100.2151,13.4653],[100.2358,13.4734],[100.2429,13.5255],[100.2317,13.5442]]]}},{"type":"Feature","properties":{"c":"120108","s":"บางกร่าง","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4696,13.8484],[100.4482,13.8645],[100.4276,13.8339],[100.4303,13.8322],[100.4591,13.8301],[100.4701,13.8486],[100.4696,13.8484]]]}},{"type":"Feature","properties":{"c":"120104","s":"บางกระสอ","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5356,13.8679],[100.4847,13.8855],[100.4778,13.8598],[100.4839,13.8606],[100.5266,13.8569],[100.5356,13.8679]]]}},{"type":"Feature","properties":{"c":"110411","s":"บางกระสอบ","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.565,13.6763],[100.5583,13.6692],[100.557,13.6557],[100.5704,13.6607],[100.5787,13.6683],[100.565,13.6763]]]}},{"type":"Feature","properties":{"c":"730604","s":"บางกระทึก","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.3115,13.7888],[100.2829,13.7616],[100.3091,13.747],[100.3273,13.7631],[100.3115,13.7888]]]}},{"type":"Feature","properties":{"c":"120202","s":"บางกรวย","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4834,13.7942],[100.4943,13.7981],[100.5153,13.8133],[100.5074,13.816],[100.5024,13.8195],[100.4913,13.8096],[100.4834,13.8062],[100.4834,13.7942]]]}},{"type":"Feature","properties":{"c":"101803","s":"บางลำภูล่าง","d":"คลองสาน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5113,13.7173],[100.493,13.721],[100.4986,13.7051],[100.5082,13.7125],[100.5113,13.7173]]]}},{"type":"Feature","properties":{"c":"120303","s":"บางเลน","d":"บางใหญ่","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4276,13.8339],[100.4482,13.8645],[100.4479,13.8674],[100.4287,13.863],[100.4244,13.8522],[100.4255,13.8367],[100.4276,13.8339]]]}},{"type":"Feature","properties":{"c":"730501","s":"บางเลน","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2022,14.006],[100.2178,14.0439],[100.1692,14.0238],[100.1329,14.0356],[100.1464,13.9998],[100.1912,13.9843],[100.2022,14.006]]]}},{"type":"Feature","properties":{"c":"130108","s":"บางหลวง","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4896,14.026],[100.4499,14.0156],[100.5269,13.9886],[100.5284,13.9914],[100.4896,14.026]]]}},{"type":"Feature","properties":{"c":"730503","s":"บางหลวง","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1899,14.1412],[100.1738,14.157],[100.1313,14.1458],[100.0634,14.1454],[100.0628,14.1106],[100.0603,14.09],[100.064,14.0722],[100.1032,14.0963],[100.1899,14.1412]]]}},{"type":"Feature","properties":{"c":"120302","s":"บางแม่นาง","d":"บางใหญ่","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4164,13.8515],[100.3796,13.8968],[100.3719,13.9116],[100.3629,13.8803],[100.3612,13.8424],[100.395,13.8483],[100.4164,13.8515]]]}},{"type":"Feature","properties":{"c":"103503","s":"บางมด","d":"จอมทอง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4879,13.6854],[100.4515,13.6754],[100.4703,13.659],[100.4758,13.6619],[100.4879,13.6854]]]}},{"type":"Feature","properties":{"c":"104901","s":"บางมด","d":"ทุ่งครุ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4964,13.6561],[100.4758,13.6619],[100.4703,13.659],[100.4748,13.6353],[100.5153,13.6447],[100.5175,13.6616],[100.4964,13.6561]]]}},{"type":"Feature","properties":{"c":"120301","s":"บางม่วง","d":"บางใหญ่","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4244,13.8522],[100.4164,13.8515],[100.395,13.8483],[100.3481,13.8248],[100.3917,13.8259],[100.403,13.824],[100.4255,13.8367],[100.4244,13.8522]]]}},{"type":"Feature","properties":{"c":"110103","s":"บางเมือง","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6469,13.6125],[100.6218,13.622],[100.5984,13.607],[100.6104,13.5941],[100.6229,13.5892],[100.631,13.5993],[100.6469,13.6125]]]}},{"type":"Feature","properties":{"c":"110114","s":"บางเมืองใหม่","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6218,13.622],[100.59,13.6379],[100.587,13.6288],[100.5984,13.607],[100.6218,13.622]]]}},{"type":"Feature","properties":{"c":"104701","s":"บางนา","d":"บางนา","p":10,"x":["บางนาเหนือ","บางนาใต้"]},"geometry":{"type":"Polygon","coordinates":[[[100.6402,13.6779],[100.5888,13.683],[100.5795,13.6692],[100.5921,13.6638],[100.6448,13.6536],[100.6538,13.669],[100.6402,13.6779]]]}},{"type":"Feature","properties":{"c":"740112","s":"บางน้ำจืด","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.3765,13.6197],[100.3502,13.6405],[100.3175,13.625],[100.3125,13.6196],[100.3114,13.6133],[100.3527,13.6221],[100.3381,13.5852],[100.3395,13.5838],[100.3784,13.6014],[100.3765,13.6197]]]}},{"type":"Feature","properties":{"c":"110410","s":"บางน้ำผึ้ง","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5888,13.683],[100.5879,13.6916],[100.5719,13.6835],[100.565,13.6763],[100.5787,13.6683],[100.5795,13.6692],[100.5888,13.683]]]}},{"type":"Feature","properties":{"c":"102502","s":"บางอ้อ","d":"บางพลัด","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5165,13.8004],[100.5153,13.8133],[100.4943,13.7981],[100.5084,13.789],[100.5165,13.8004]]]}},{"type":"Feature","properties":{"c":"102402","s":"บางปะกอก","d":"ราษฎร์บูรณะ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.49,13.6953],[100.4825,13.6948],[100.4821,13.6939],[100.4879,13.6854],[100.4758,13.6619],[100.4964,13.6561],[100.5061,13.6857],[100.4999,13.6869],[100.49,13.6953]]]}},{"type":"Feature","properties":{"c":"104003","s":"บางไผ่","d":"บางแค","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4062,13.7494],[100.3594,13.738],[100.365,13.7263],[100.4178,13.7312],[100.4134,13.7479],[100.4062,13.7494]]]}},{"type":"Feature","properties":{"c":"120106","s":"บางไผ่","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5024,13.8195],[100.4906,13.8401],[100.482,13.8224],[100.4913,13.8096],[100.5024,13.8195]]]}},{"type":"Feature","properties":{"c":"730504","s":"บางภาษี","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2709,14.0666],[100.2182,14.0733],[100.2178,14.0439],[100.2022,14.006],[100.2592,13.9956],[100.2624,13.9981],[100.2671,14.0452],[100.2709,14.0666]]]}},{"type":"Feature","properties":{"c":"120611","s":"บางพลับ","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.466,13.9364],[100.4508,13.9482],[100.4445,13.9363],[100.4413,13.9206],[100.4458,13.9199],[100.4692,13.9176],[100.4746,13.9183],[100.466,13.9364]]]}},{"type":"Feature","properties":{"c":"102501","s":"บางพลัด","d":"บางพลัด","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5084,13.789],[100.4943,13.7981],[100.4834,13.7942],[100.4662,13.7889],[100.4659,13.7872],[100.4684,13.7875],[100.4944,13.7846],[100.5023,13.7812],[100.5056,13.7864],[100.5084,13.789]]]}},{"type":"Feature","properties":{"c":"110203","s":"บางพลีน้อย","d":"บางบ่อ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.9139,13.5767],[100.9071,13.592],[100.9422,13.6506],[100.9176,13.6417],[100.8901,13.5646],[100.9139,13.5767]]]}},{"type":"Feature","properties":{"c":"110301","s":"บางพลีใหญ่","d":"บางพลี","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.718,13.6284],[100.7064,13.6786],[100.6983,13.6563],[100.6706,13.6139],[100.6685,13.6038],[100.7011,13.5705],[100.7204,13.6031],[100.718,13.6284]]]}},{"type":"Feature","properties":{"c":"130705","s":"บางโพธิ์เหนือ","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5252,14.042],[100.5112,14.0477],[100.4815,14.0587],[100.4966,14.0471],[100.5244,14.0319],[100.5429,14.03],[100.5467,14.0348],[100.5252,14.042]]]}},{"type":"Feature","properties":{"c":"101204","s":"บางโพงพาง","d":"ยานนาวา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.55,13.6758],[100.5317,13.6982],[100.517,13.6827],[100.5234,13.6779],[100.5281,13.6738],[100.5474,13.6726],[100.55,13.6758]]]}},{"type":"Feature","properties":{"c":"730320","s":"บางพระ","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1993,13.9124],[100.1751,13.9227],[100.1597,13.9086],[100.2146,13.8812],[100.2202,13.886],[100.1993,13.9124]]]}},{"type":"Feature","properties":{"c":"110204","s":"บางเพรียง","d":"บางบ่อ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.8476,13.5506],[100.8325,13.5786],[100.7722,13.5537],[100.7659,13.5218],[100.777,13.5205],[100.8476,13.5506]]]}},{"type":"Feature","properties":{"c":"101904","s":"บางพรม","d":"ตลิ่งชัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4546,13.7594],[100.4068,13.7601],[100.4066,13.7587],[100.4566,13.7435],[100.4584,13.7438],[100.46,13.7439],[100.4546,13.7594]]]}},{"type":"Feature","properties":{"c":"110402","s":"บางพึ่ง","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5281,13.6738],[100.5234,13.6779],[100.5175,13.6616],[100.5153,13.6447],[100.5169,13.6378],[100.5302,13.6507],[100.5288,13.6648],[100.5281,13.6738]]]}},{"type":"Feature","properties":{"c":"130111","s":"บางพูน","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.6007,14.0014],[100.58,14.0025],[100.5673,13.9897],[100.5702,13.979],[100.5716,13.9728],[100.6033,13.9808],[100.6014,13.9956],[100.6007,14.0014]]]}},{"type":"Feature","properties":{"c":"120604","s":"บางพูด","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5227,13.9435],[100.5018,13.9367],[100.4993,13.9253],[100.5284,13.9091],[100.5318,13.9084],[100.5227,13.9435]]]}},{"type":"Feature","properties":{"c":"130110","s":"บางพูด","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5975,14.0272],[100.5893,14.0742],[100.5851,14.0733],[100.5666,14.0387],[100.5644,14.0313],[100.5975,14.0272]]]}},{"type":"Feature","properties":{"c":"110303","s":"บางปลา","d":"บางพลี","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.7748,13.5963],[100.7204,13.6031],[100.7011,13.5705],[100.7018,13.5323],[100.7188,13.5197],[100.7659,13.5218],[100.7722,13.5537],[100.7748,13.5963]]]}},{"type":"Feature","properties":{"c":"730502","s":"บางปลา","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1912,13.9843],[100.1464,13.9998],[100.1295,13.9574],[100.1582,13.9352],[100.18,13.9627],[100.1805,13.9635],[100.1912,13.9843]]]}},{"type":"Feature","properties":{"c":"130101","s":"บางปรอก","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5429,14.03],[100.5244,14.0319],[100.5344,13.9956],[100.5398,14.0023],[100.5389,14.0263],[100.5429,14.03]]]}},{"type":"Feature","properties":{"c":"110111","s":"บางโปรง","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5728,13.6338],[100.5688,13.6373],[100.5514,13.6186],[100.5712,13.6109],[100.5728,13.6338]]]}},{"type":"Feature","properties":{"c":"110112","s":"บางปู","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.777,13.5205],[100.7659,13.5218],[100.7188,13.5197],[100.7124,13.5011],[100.7804,13.492],[100.777,13.5205]]]}},{"type":"Feature","properties":{"c":"110108","s":"บางปูใหม่","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6736,13.5458],[100.6255,13.5561],[100.6215,13.5406],[100.615,13.5356],[100.7124,13.5011],[100.7188,13.5197],[100.7018,13.5323],[100.6736,13.5458]]]}},{"type":"Feature","properties":{"c":"100404","s":"บางรัก","d":"บางรัก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5157,13.7302],[100.5154,13.7322],[100.5123,13.7294],[100.512,13.7193],[100.5151,13.7186],[100.5167,13.7223],[100.5163,13.7254],[100.5157,13.7302]]]}},{"type":"Feature","properties":{"c":"120110","s":"บางรักน้อย","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4696,13.8484],[100.4622,13.892],[100.4496,13.8891],[100.4479,13.8674],[100.4482,13.8645],[100.4696,13.8484]]]}},{"type":"Feature","properties":{"c":"120408","s":"บางรักพัฒนา","d":"บางบัวทอง","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4393,13.8994],[100.387,13.9125],[100.3729,13.9246],[100.3719,13.9116],[100.3796,13.8968],[100.421,13.869],[100.4491,13.8917],[100.4479,13.8979],[100.4393,13.8994]]]}},{"type":"Feature","properties":{"c":"120403","s":"บางรักใหญ่","d":"บางบัวทอง","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4491,13.8917],[100.421,13.869],[100.4287,13.863],[100.4479,13.8674],[100.4496,13.8891],[100.4491,13.8917]]]}},{"type":"Feature","properties":{"c":"730310","s":"บางระกำ","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1206,13.7818],[100.1056,13.7838],[100.0984,13.7678],[100.1028,13.7356],[100.1451,13.7441],[100.1426,13.7596],[100.1206,13.7818]]]}},{"type":"Feature","properties":{"c":"730505","s":"บางระกำ","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2263,13.941],[100.18,13.9627],[100.1582,13.9352],[100.1747,13.9244],[100.1751,13.9227],[100.1993,13.9124],[100.256,13.9053],[100.2263,13.941]]]}},{"type":"Feature","properties":{"c":"101905","s":"บางระมาด","d":"ตลิ่งชัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4523,13.7722],[100.4093,13.7805],[100.4068,13.7601],[100.4546,13.7594],[100.4523,13.7722]]]}},{"type":"Feature","properties":{"c":"730506","s":"บางไทรป่า","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2182,14.0733],[100.1422,14.0668],[100.1373,14.0704],[100.1258,14.0386],[100.1329,14.0356],[100.1692,14.0238],[100.2178,14.0439],[100.2182,14.0733]]]}},{"type":"Feature","properties":{"c":"110601","s":"บางเสาธง","d":"บางเสาธง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.8593,13.6896],[100.8288,13.7018],[100.8287,13.7018],[100.8236,13.6673],[100.7991,13.5906],[100.7794,13.595],[100.7748,13.5963],[100.7722,13.5537],[100.8325,13.5786],[100.8526,13.6451],[100.8593,13.6896]]]}},{"type":"Feature","properties":{"c":"120107","s":"บางศรีเมือง","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4906,13.8401],[100.4795,13.855],[100.4701,13.8486],[100.4591,13.8301],[100.4637,13.8272],[100.466,13.8253],[100.482,13.8224],[100.4906,13.8401]]]}},{"type":"Feature","properties":{"c":"120203","s":"บางสีทอง","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.482,13.8224],[100.466,13.8253],[100.4715,13.8159],[100.4834,13.8062],[100.4913,13.8096],[100.482,13.8224]]]}},{"type":"Feature","properties":{"c":"102901","s":"บางซื่อ","d":"บางซื่อ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5371,13.8217],[100.5153,13.8133],[100.5165,13.8004],[100.5374,13.7979],[100.5371,13.8217]]]}},{"type":"Feature","properties":{"c":"120602","s":"บางตลาด","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5295,13.904],[100.4909,13.9041],[100.4889,13.8991],[100.4904,13.8944],[100.5503,13.8776],[100.5544,13.8953],[100.5295,13.904]]]}},{"type":"Feature","properties":{"c":"120605","s":"บางตะไนย์","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5018,13.9367],[100.4874,13.9451],[100.4787,13.9433],[100.4911,13.9147],[100.4993,13.9253],[100.5018,13.9367]]]}},{"type":"Feature","properties":{"c":"740105","s":"บางโทรัด","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.159,13.5385],[100.1487,13.5336],[100.12,13.5134],[100.1509,13.4484],[100.1872,13.4584],[100.1706,13.5198],[100.159,13.5385]]]}},{"type":"Feature","properties":{"c":"130701","s":"บางเตย","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.524,14.0767],[100.4952,14.0732],[100.43,14.1143],[100.4221,14.114],[100.4299,14.0957],[100.4522,14.0873],[100.4815,14.0587],[100.5112,14.0477],[100.5324,14.0665],[100.524,14.0767]]]}},{"type":"Feature","properties":{"c":"730605","s":"บางเตย","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2796,13.802],[100.2723,13.802],[100.266,13.7609],[100.2829,13.7616],[100.3115,13.7888],[100.2796,13.802]]]}},{"type":"Feature","properties":{"c":"102201","s":"บางหว้า","d":"ภาษีเจริญ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4599,13.7139],[100.4549,13.7234],[100.4503,13.7225],[100.4258,13.7152],[100.4259,13.7124],[100.4278,13.6876],[100.4377,13.6937],[100.4559,13.7084],[100.4599,13.7139]]]}},{"type":"Feature","properties":{"c":"102207","s":"บางแวก","d":"ภาษีเจริญ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.458,13.7344],[100.4584,13.7438],[100.4566,13.7435],[100.4323,13.7405],[100.4327,13.7302],[100.4459,13.7308],[100.458,13.7344]]]}},{"type":"Feature","properties":{"c":"110405","s":"บางหญ้าแพรก","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5547,13.6564],[100.5382,13.6599],[100.5341,13.6493],[100.5417,13.6285],[100.5648,13.6408],[100.554,13.6508],[100.5547,13.6564]]]}},{"type":"Feature","properties":{"c":"740117","s":"บางหญ้าแพรก","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.292,13.5006],[100.2954,13.5511],[100.2802,13.5422],[100.2656,13.5283],[100.2618,13.5307],[100.2429,13.5255],[100.2358,13.4734],[100.292,13.5006]]]}},{"type":"Feature","properties":{"c":"120305","s":"บางใหญ่","d":"บางใหญ่","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3481,13.8248],[100.395,13.8483],[100.3612,13.8424],[100.3133,13.8348],[100.3192,13.8226],[100.3481,13.8248]]]}},{"type":"Feature","properties":{"c":"740205","s":"บางยาง","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2242,13.6814],[100.1987,13.6771],[100.2015,13.6513],[100.2059,13.6434],[100.2071,13.6425],[100.2308,13.6443],[100.2495,13.6578],[100.2418,13.678],[100.2242,13.6814]]]}},{"type":"Feature","properties":{"c":"102504","s":"บางยี่ขัน","d":"บางพลัด","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5023,13.7812],[100.4944,13.7846],[100.4819,13.7734],[100.491,13.7619],[100.4948,13.7656],[100.499,13.7727],[100.5023,13.7812]]]}},{"type":"Feature","properties":{"c":"101503","s":"บางยี่เรือ","d":"ธนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4935,13.727],[100.4857,13.7277],[100.4786,13.7226],[100.4801,13.7169],[100.4914,13.7211],[100.4929,13.7213],[100.4927,13.7247],[100.4938,13.7265],[100.4935,13.727]]]}},{"type":"Feature","properties":{"c":"110408","s":"บางยอ","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5642,13.6843],[100.5525,13.6897],[100.55,13.6758],[100.5474,13.6726],[100.5583,13.6692],[100.565,13.6763],[100.5719,13.6835],[100.5642,13.6843]]]}},{"type":"Feature","properties":{"c":"130506","s":"บ่อเงิน","d":"ลาดหลุมแก้ว","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4221,14.114],[100.3977,14.1151],[100.3441,14.1149],[100.344,14.115],[100.3415,14.1009],[100.3463,14.0991],[100.4228,14.0607],[100.4299,14.0957],[100.4221,14.114]]]}},{"type":"Feature","properties":{"c":"730110","s":"บ่อพลับ","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.081,13.8426],[100.0613,13.8516],[100.0568,13.8246],[100.0808,13.8223],[100.0859,13.8244],[100.0918,13.8295],[100.081,13.8426]]]}},{"type":"Feature","properties":{"c":"100107","s":"บวรนิเวศ","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5057,13.7562],[100.5002,13.7617],[100.4949,13.7572],[100.4952,13.7566],[100.4987,13.7556],[100.5024,13.7546],[100.5055,13.7538],[100.5057,13.7562]]]}},{"type":"Feature","properties":{"c":"730511","s":"บัวปากท่า","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2129,14.1792],[100.1738,14.157],[100.1899,14.1412],[100.282,14.1468],[100.2841,14.1696],[100.2129,14.1792]]]}},{"type":"Feature","properties":{"c":"130401","s":"บึงบา","d":"หนองเสือ","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.8461,14.158],[100.8008,14.1575],[100.8009,14.1317],[100.8012,14.0602],[100.8465,14.0758],[100.8461,14.1537],[100.8461,14.158]]]}},{"type":"Feature","properties":{"c":"130402","s":"บึงบอน","d":"หนองเสือ","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.8012,14.0602],[100.8009,14.1317],[100.7554,14.1129],[100.7555,14.0448],[100.8012,14.0602]]]}},{"type":"Feature","properties":{"c":"130404","s":"บึงชำอ้อ","d":"หนองเสือ","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.8008,14.1575],[100.8002,14.2325],[100.776,14.2211],[100.7551,14.2111],[100.7554,14.1129],[100.8009,14.1317],[100.8008,14.1575]]]}},{"type":"Feature","properties":{"c":"130403","s":"บึงกาสาม","d":"หนองเสือ","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.8461,14.158],[100.8459,14.2543],[100.8215,14.2427],[100.8002,14.2325],[100.8008,14.1575],[100.8461,14.158]]]}},{"type":"Feature","properties":{"c":"130603","s":"บึงคำพร้อย","d":"ลำลูกกา","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7477,13.9182],[100.7556,14.0138],[100.7062,13.9939],[100.7028,13.9167],[100.7287,13.9175],[100.7477,13.9182]]]}},{"type":"Feature","properties":{"c":"130607","s":"บึงคอไห","d":"ลำลูกกา","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.9145,14.0084],[100.9148,14.0682],[100.846,14.0438],[100.8443,14.0094],[100.8816,14.0058],[100.9145,14.0084]]]}},{"type":"Feature","properties":{"c":"130306","s":"บึงน้ำรักษ์","d":"ธัญบุรี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.9148,14.084],[100.9141,14.0996],[100.8465,14.0758],[100.846,14.0441],[100.846,14.0438],[100.9148,14.0682],[100.9148,14.084]]]}},{"type":"Feature","properties":{"c":"130305","s":"บึงสนั่น","d":"ธัญบุรี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.846,14.0441],[100.8465,14.0758],[100.8012,14.0602],[100.8005,14.0293],[100.8005,14.0284],[100.846,14.0441]]]}},{"type":"Feature","properties":{"c":"130605","s":"บึงทองหลาง","d":"ลำลูกกา","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7926,13.9315],[100.8394,13.9365],[100.8443,14.0094],[100.846,14.0438],[100.846,14.0441],[100.8005,14.0284],[100.7926,13.9315]]]}},{"type":"Feature","properties":{"c":"130302","s":"บึงยี่โถ","d":"ธัญบุรี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7062,13.9939],[100.7099,14.0239],[100.6988,14.0185],[100.6763,14.009],[100.664,14.0082],[100.6635,13.9795],[100.7062,13.9939]]]}},{"type":"Feature","properties":{"c":"101504","s":"บุคคโล","d":"ธนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4858,13.7048],[100.4914,13.7211],[100.4801,13.7169],[100.4783,13.7159],[100.4858,13.7048]]]}},{"type":"Feature","properties":{"c":"740118","s":"ชัยมงคล","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.1859,13.5756],[100.159,13.5385],[100.1706,13.5198],[100.1875,13.5255],[100.1942,13.547],[100.1859,13.5756]]]}},{"type":"Feature","properties":{"c":"101301","s":"จักรวรรดิ","d":"สัมพันธวงศ์","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5065,13.737],[100.5032,13.7448],[100.4998,13.7386],[100.5041,13.7376],[100.5065,13.737]]]}},{"type":"Feature","properties":{"c":"100109","s":"ชนะสงคราม","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4986,13.7627],[100.4948,13.7656],[100.491,13.7619],[100.4945,13.7576],[100.4986,13.7627]]]}},{"type":"Feature","properties":{"c":"103003","s":"จันทรเกษม","d":"จตุจักร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5899,13.8323],[100.5723,13.834],[100.5683,13.8271],[100.5749,13.8011],[100.5883,13.803],[100.5899,13.8323]]]}},{"type":"Feature","properties":{"c":"103005","s":"จตุจักร","d":"จตุจักร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5683,13.8271],[100.5392,13.8306],[100.5371,13.8217],[100.5374,13.7979],[100.5507,13.7962],[100.5683,13.8271]]]}},{"type":"Feature","properties":{"c":"740308","s":"เจ็ดริ้ว","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.1359,13.682],[100.121,13.6791],[100.1142,13.6523],[100.163,13.6273],[100.1523,13.6492],[100.1359,13.682]]]}},{"type":"Feature","properties":{"c":"130709","s":"เชียงรากน้อย","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5861,14.0961],[100.5821,14.1286],[100.5805,14.1277],[100.5514,14.1111],[100.5455,14.0974],[100.5552,14.0834],[100.5861,14.0961]]]}},{"type":"Feature","properties":{"c":"130706","s":"เชียงรากใหญ่","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5851,14.0733],[100.5532,14.0508],[100.5544,14.0422],[100.5666,14.0387],[100.5851,14.0733]]]}},{"type":"Feature","properties":{"c":"101903","s":"ฉิมพลี","d":"ตลิ่งชัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4152,13.8012],[100.4111,13.8013],[100.4093,13.7805],[100.4523,13.7722],[100.455,13.7773],[100.4252,13.8006],[100.4152,13.8012]]]}},{"type":"Feature","properties":{"c":"103504","s":"จอมทอง","d":"จอมทอง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4821,13.6939],[100.4655,13.703],[100.4485,13.6817],[100.4488,13.6753],[100.4515,13.6754],[100.4879,13.6854],[100.4821,13.6939]]]}},{"type":"Feature","properties":{"c":"103004","s":"จอมพล","d":"จตุจักร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5749,13.8011],[100.5683,13.8271],[100.5507,13.7962],[100.5616,13.795],[100.5749,13.8011]]]}},{"type":"Feature","properties":{"c":"101203","s":"ช่องนนทรี","d":"ยานนาวา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5538,13.7165],[100.5376,13.7072],[100.5299,13.7025],[100.5317,13.6982],[100.55,13.6758],[100.5525,13.6897],[100.5549,13.7055],[100.5538,13.7165]]]}},{"type":"Feature","properties":{"c":"103802","s":"จรเข้บัว","d":"ลาดพร้าว","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.619,13.8485],[100.5899,13.8439],[100.5907,13.8354],[100.6287,13.8427],[100.619,13.8485]]]}},{"type":"Feature","properties":{"c":"101506","s":"ดาวคะนอง","d":"ธนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4858,13.7048],[100.4783,13.7159],[100.4764,13.7112],[100.4825,13.6948],[100.49,13.6953],[100.4922,13.7009],[100.4858,13.7048]]]}},{"type":"Feature","properties":{"c":"102601","s":"ดินแดง","d":"ดินแดง","p":10,"x":["รัชดาภิเษก"]},"geometry":{"type":"Polygon","coordinates":[[[100.5744,13.7897],[100.5749,13.8011],[100.5616,13.795],[100.5434,13.7627],[100.565,13.7551],[100.5744,13.7897]]]}},{"type":"Feature","properties":{"c":"103203","s":"ดอกไม้","d":"ประเวศ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.71,13.6952],[100.6746,13.7005],[100.6669,13.6682],[100.6983,13.6563],[100.7064,13.6786],[100.71,13.6952]]]}},{"type":"Feature","properties":{"c":"730317","s":"ดอนแฝก","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2223,13.8437],[100.2554,13.8744],[100.2027,13.866],[100.1964,13.8447],[100.1979,13.8428],[100.2223,13.8437]]]}},{"type":"Feature","properties":{"c":"740208","s":"ดอนไก่ดี","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2669,13.6524],[100.2462,13.6474],[100.2625,13.6083],[100.2706,13.605],[100.2815,13.6192],[100.2669,13.6524]]]}},{"type":"Feature","properties":{"c":"730208","s":"ดอนข่อย","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0534,14.0461],[100.0007,14.0302],[100.013,14.0079],[100.0532,13.9884],[100.0629,14.0132],[100.0643,14.0326],[100.0534,14.0461]]]}},{"type":"Feature","properties":{"c":"103604","s":"ดอนเมือง","d":"ดอนเมือง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5844,13.8905],[100.6024,13.9226],[100.5636,13.9345],[100.5589,13.9145],[100.5829,13.8907],[100.5844,13.8905]]]}},{"type":"Feature","properties":{"c":"730404","s":"ดอนพุทรา","d":"ดอนตูม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1295,13.9574],[100.1228,13.9595],[100.1133,13.9519],[100.1093,13.9282],[100.1339,13.9161],[100.1747,13.9244],[100.1582,13.9352],[100.1295,13.9574]]]}},{"type":"Feature","properties":{"c":"730406","s":"ดอนรวก","d":"ดอนตูม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1421,13.8943],[100.1258,13.9087],[100.0963,13.8802],[100.0925,13.8746],[100.1165,13.8718],[100.1421,13.8943]]]}},{"type":"Feature","properties":{"c":"730509","s":"ดอนตูม","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1464,13.9998],[100.1329,14.0356],[100.1258,14.0386],[100.1141,14.0431],[100.0999,13.9819],[100.1228,13.9595],[100.1295,13.9574],[100.1464,13.9998]]]}},{"type":"Feature","properties":{"c":"730108","s":"ดอนยายหอม","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0984,13.7678],[100.0579,13.7567],[100.0333,13.6947],[100.0679,13.6934],[100.1074,13.7048],[100.1028,13.7356],[100.0984,13.7678]]]}},{"type":"Feature","properties":{"c":"100201","s":"ดุสิต","d":"ดุสิต","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5214,13.778],[100.5107,13.7832],[100.5039,13.7698],[100.5094,13.7637],[100.512,13.761],[100.5214,13.778]]]}},{"type":"Feature","properties":{"c":"730507","s":"หินมูล","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1945,14.124],[100.1899,14.1412],[100.1032,14.0963],[100.1373,14.0704],[100.1422,14.0668],[100.1945,14.124]]]}},{"type":"Feature","properties":{"c":"101502","s":"หิรัญรูจี","d":"ธนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4935,13.727],[100.4948,13.7309],[100.4879,13.7361],[100.4878,13.736],[100.4857,13.7277],[100.4935,13.727]]]}},{"type":"Feature","properties":{"c":"730603","s":"หอมเกร็ด","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2625,13.8022],[100.2479,13.8017],[100.2265,13.7881],[100.206,13.7641],[100.2131,13.7579],[100.2488,13.7573],[100.2625,13.8022]]]}},{"type":"Feature","properties":{"c":"100608","s":"หัวหมาก","d":"บางกะปิ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6591,13.7384],[100.6646,13.7754],[100.6562,13.7707],[100.6305,13.7633],[100.6041,13.7512],[100.6013,13.7481],[100.6591,13.7384]]]}},{"type":"Feature","properties":{"c":"730122","s":"ห้วยจรเข้","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0778,13.8185],[100.0581,13.8156],[100.0636,13.7858],[100.0778,13.8011],[100.0778,13.8185]]]}},{"type":"Feature","properties":{"c":"730407","s":"ห้วยด้วน","d":"ดอนตูม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1339,13.9161],[100.1093,13.9282],[100.0761,13.8996],[100.0963,13.8802],[100.1258,13.9087],[100.1339,13.9161]]]}},{"type":"Feature","properties":{"c":"101701","s":"ห้วยขวาง","d":"ห้วยขวาง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5865,13.7621],[100.5744,13.7897],[100.565,13.7551],[100.5865,13.7621]]]}},{"type":"Feature","properties":{"c":"730204","s":"ห้วยขวาง","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0035,13.9437],[99.9835,13.9566],[99.9716,13.9451],[99.9834,13.9193],[100.0336,13.8846],[100.0574,13.9137],[100.0581,13.9295],[100.0172,13.9432],[100.0035,13.9437]]]}},{"type":"Feature","properties":{"c":"730210","s":"ห้วยหมอนทอง","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.955,13.9941],[99.9026,13.9881],[99.8975,13.9424],[99.927,13.934],[99.9392,13.938],[99.955,13.9941]]]}},{"type":"Feature","properties":{"c":"730211","s":"ห้วยม่วง","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0634,14.1454],[100.0368,14.153],[99.985,14.14],[99.9872,14.1029],[100.0628,14.1106],[100.0634,14.1454]]]}},{"type":"Feature","properties":{"c":"730318","s":"ห้วยพลู","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2633,13.8779],[100.2202,13.886],[100.2146,13.8812],[100.2027,13.866],[100.2554,13.8744],[100.2639,13.8758],[100.2633,13.8779]]]}},{"type":"Feature","properties":{"c":"730402","s":"ห้วยพระ","d":"ดอนตูม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1133,13.9519],[100.0707,13.9526],[100.0581,13.9295],[100.0574,13.9137],[100.0709,13.9007],[100.0761,13.8996],[100.1093,13.9282],[100.1133,13.9519]]]}},{"type":"Feature","properties":{"c":"740106","s":"กาหลง","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.12,13.5134],[100.1045,13.5027],[100.1329,13.4426],[100.1509,13.4484],[100.12,13.5134]]]}},{"type":"Feature","properties":{"c":"730212","s":"กำแพงแสน","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0007,14.0302],[99.964,14.0508],[99.9562,14.0276],[99.9771,13.9978],[100.0024,13.9965],[100.013,14.0079],[100.0007,14.0302]]]}},{"type":"Feature","properties":{"c":"740312","s":"เกษตรพัฒนา","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.1714,13.6806],[100.1359,13.682],[100.1523,13.6492],[100.2059,13.6434],[100.2015,13.6513],[100.1714,13.6806]]]}},{"type":"Feature","properties":{"c":"740209","s":"แคราย","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.3502,13.6405],[100.3468,13.6553],[100.3394,13.655],[100.3065,13.6543],[100.3175,13.625],[100.3502,13.6405]]]}},{"type":"Feature","properties":{"c":"104301","s":"คันนายาว","d":"คันนายาว","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6968,13.8155],[100.674,13.8522],[100.6851,13.7867],[100.705,13.7977],[100.6968,13.8155]]]}},{"type":"Feature","properties":{"c":"101901","s":"คลองชักพระ","d":"ตลิ่งชัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4677,13.7797],[100.4667,13.7815],[100.455,13.7773],[100.4523,13.7722],[100.4546,13.7594],[100.46,13.7439],[100.4621,13.7444],[100.4567,13.7759],[100.4677,13.7797]]]}},{"type":"Feature","properties":{"c":"100601","s":"คลองจั่น","d":"บางกะปิ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6482,13.7848],[100.6245,13.8174],[100.6151,13.7998],[100.6283,13.7756],[100.6305,13.7633],[100.6562,13.7707],[100.6482,13.7848]]]}},{"type":"Feature","properties":{"c":"104503","s":"คลองเจ้าคุณสิงห์","d":"วังทองหลาง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6283,13.7756],[100.6151,13.7998],[100.6129,13.7948],[100.6092,13.7863],[100.6283,13.7756]]]}},{"type":"Feature","properties":{"c":"130207","s":"คลองเจ็ด","d":"คลองหลวง","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7554,14.1129],[100.7551,14.2111],[100.7434,14.2055],[100.7442,14.0402],[100.7555,14.0448],[100.7554,14.1129]]]}},{"type":"Feature","properties":{"c":"730613","s":"คลองจินดา","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1603,13.7374],[100.1523,13.7377],[100.1074,13.7048],[100.121,13.6791],[100.1359,13.682],[100.1714,13.6806],[100.1817,13.689],[100.1714,13.723],[100.1603,13.7374]]]}},{"type":"Feature","properties":{"c":"110205","s":"คลองด่าน","d":"บางบ่อ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.8626,13.5467],[100.8476,13.5506],[100.777,13.5205],[100.7804,13.492],[100.8484,13.4784],[100.8774,13.5399],[100.8793,13.5467],[100.8626,13.5467]]]}},{"type":"Feature","properties":{"c":"130205","s":"คลองห้า","d":"คลองหลวง","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7209,14.0306],[100.7208,14.1947],[100.6987,14.1843],[100.6988,14.0185],[100.7099,14.0239],[100.7209,14.0306]]]}},{"type":"Feature","properties":{"c":"130206","s":"คลองหก","d":"คลองหลวง","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7442,14.0402],[100.7434,14.2055],[100.7317,14.1999],[100.7208,14.1947],[100.7209,14.0306],[100.7442,14.0402]]]}},{"type":"Feature","properties":{"c":"120610","s":"คลองข่อย","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4233,13.9839],[100.3811,13.9948],[100.3805,13.9888],[100.3971,13.9845],[100.4508,13.9482],[100.466,13.9364],[100.4787,13.9433],[100.4874,13.9451],[100.4623,13.9717],[100.4233,13.9839]]]}},{"type":"Feature","properties":{"c":"130702","s":"คลองควาย","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4818,14.1118],[100.4545,14.1159],[100.43,14.1143],[100.4952,14.0732],[100.524,14.0767],[100.5272,14.0855],[100.5009,14.0945],[100.4818,14.1118]]]}},{"type":"Feature","properties":{"c":"102208","s":"คลองขวาง","d":"ภาษีเจริญ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4323,13.7405],[100.4134,13.7479],[100.4178,13.7312],[100.425,13.7291],[100.4327,13.7302],[100.4323,13.7405]]]}},{"type":"Feature","properties":{"c":"120506","s":"คลองขวาง","d":"ไทรน้อย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3527,13.9985],[100.3248,14.0606],[100.3009,14.0254],[100.3102,13.9796],[100.3496,13.9966],[100.3527,13.9985]]]}},{"type":"Feature","properties":{"c":"120612","s":"คลองเกลือ","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5318,13.9084],[100.5284,13.9091],[100.5295,13.904],[100.5544,13.8953],[100.557,13.9063],[100.5318,13.9084]]]}},{"type":"Feature","properties":{"c":"102701","s":"คลองกุ่ม","d":"บึงกุ่ม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6751,13.7812],[100.6608,13.82],[100.6503,13.8099],[100.6482,13.7848],[100.6562,13.7707],[100.6646,13.7754],[100.6751,13.7812]]]}},{"type":"Feature","properties":{"c":"740206","s":"คลองมะเดื่อ","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.3065,13.6543],[100.2725,13.6567],[100.2669,13.6524],[100.2815,13.6192],[100.3125,13.6196],[100.3175,13.625],[100.3065,13.6543]]]}},{"type":"Feature","properties":{"c":"100803","s":"คลองมหานาค","d":"ป้อมปราบศัตรูพ่าย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5174,13.7531],[100.5164,13.7566],[100.5097,13.7565],[100.5087,13.7519],[100.5169,13.7491],[100.5174,13.7531]]]}},{"type":"Feature","properties":{"c":"730611","s":"คลองใหม่","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2094,13.7441],[100.2131,13.7579],[100.206,13.7641],[100.1785,13.7446],[100.1604,13.7408],[100.1603,13.7374],[100.1714,13.723],[100.2071,13.7208],[100.2166,13.7346],[100.2094,13.7441]]]}},{"type":"Feature","properties":{"c":"110208","s":"คลองนิยมยาตรา","d":"บางบ่อ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.961,13.636],[100.953,13.6586],[100.9422,13.6506],[100.9071,13.592],[100.961,13.636]]]}},{"type":"Feature","properties":{"c":"730512","s":"คลองนกกระทุง","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2592,13.9956],[100.2022,14.006],[100.1912,13.9843],[100.1805,13.9635],[100.2512,13.9802],[100.2592,13.9956]]]}},{"type":"Feature","properties":{"c":"130201","s":"คลองหนึ่ง","d":"คลองหลวง","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.632,14.0027],[100.631,14.149],[100.6197,14.1431],[100.5821,14.1286],[100.5861,14.0961],[100.5893,14.0742],[100.5975,14.0272],[100.6007,14.0014],[100.6014,13.9956],[100.632,14.0027]]]}},{"type":"Feature","properties":{"c":"120606","s":"คลองพระอุดม","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4911,13.9147],[100.4787,13.9433],[100.466,13.9364],[100.4746,13.9183],[100.4911,13.9147]]]}},{"type":"Feature","properties":{"c":"130505","s":"คลองพระอุดม","d":"ลาดหลุมแก้ว","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4499,14.0156],[100.4426,14.0189],[100.4423,14.0167],[100.4233,13.9839],[100.4623,13.9717],[100.4703,13.9935],[100.4499,14.0156]]]}},{"type":"Feature","properties":{"c":"130203","s":"คลองสาม","d":"คลองหลวง","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.6763,14.009],[100.6744,14.1718],[100.6669,14.1679],[100.6524,14.1603],[100.6532,14.0075],[100.664,14.0082],[100.6763,14.009]]]}},{"type":"Feature","properties":{"c":"101103","s":"คลองสามประเวศ","d":"ลาดกระบัง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7686,13.782],[100.7466,13.7779],[100.7389,13.7732],[100.7391,13.7273],[100.7692,13.728],[100.7686,13.782]]]}},{"type":"Feature","properties":{"c":"101802","s":"คลองสาน","d":"คลองสาน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5065,13.737],[100.5041,13.7376],[100.4938,13.7265],[100.4927,13.7247],[100.5123,13.7294],[100.5098,13.7348],[100.5065,13.737]]]}},{"type":"Feature","properties":{"c":"130204","s":"คลองสี่","d":"คลองหลวง","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.6988,14.0185],[100.6987,14.1843],[100.6744,14.1718],[100.6763,14.009],[100.6988,14.0185]]]}},{"type":"Feature","properties":{"c":"100303","s":"คลองสิบ","d":"หนองจอก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.8495,13.886],[100.8517,13.9381],[100.8394,13.9365],[100.7926,13.9315],[100.7926,13.9314],[100.7928,13.8938],[100.8294,13.8892],[100.8495,13.886]]]}},{"type":"Feature","properties":{"c":"100304","s":"คลองสิบสอง","d":"หนองจอก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.908,13.897],[100.914,13.9465],[100.8818,13.9424],[100.8517,13.9381],[100.8495,13.886],[100.908,13.897]]]}},{"type":"Feature","properties":{"c":"130202","s":"คลองสอง","d":"คลองหลวง","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.6532,14.0075],[100.6524,14.1603],[100.631,14.149],[100.632,14.0027],[100.6532,14.0075]]]}},{"type":"Feature","properties":{"c":"101102","s":"คลองสองต้นนุ่น","d":"ลาดกระบัง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7389,13.7732],[100.7164,13.7781],[100.7084,13.7325],[100.7084,13.7308],[100.7391,13.7273],[100.7389,13.7732]]]}},{"type":"Feature","properties":{"c":"110206","s":"คลองสวน","d":"บางบ่อ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.9376,13.6687],[100.9181,13.6755],[100.8994,13.6478],[100.9176,13.6417],[100.9422,13.6506],[100.953,13.6586],[100.9558,13.6624],[100.9376,13.6687]]]}},{"type":"Feature","properties":{"c":"103302","s":"คลองตัน","d":"คลองเตย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5661,13.7331],[100.5652,13.7338],[100.5763,13.713],[100.5777,13.725],[100.5661,13.7331]]]}},{"type":"Feature","properties":{"c":"740309","s":"คลองตัน","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2059,13.6434],[100.1523,13.6492],[100.163,13.6273],[100.1698,13.6225],[100.2071,13.6425],[100.2059,13.6434]]]}},{"type":"Feature","properties":{"c":"103902","s":"คลองตันเหนือ","d":"วัฒนา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5982,13.7411],[100.5707,13.7465],[100.5661,13.7331],[100.5777,13.725],[100.5845,13.7201],[100.6055,13.7236],[100.5982,13.7411]]]}},{"type":"Feature","properties":{"c":"104203","s":"คลองถนน","d":"สายไหม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6494,13.9013],[100.6221,13.9183],[100.6111,13.8998],[100.6231,13.883],[100.6531,13.8864],[100.6494,13.9013]]]}},{"type":"Feature","properties":{"c":"103301","s":"คลองเตย","d":"คลองเตย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5821,13.6975],[100.5763,13.713],[100.5652,13.7338],[100.5507,13.7428],[100.5529,13.7228],[100.5538,13.7165],[100.5549,13.7055],[100.5714,13.7031],[100.5821,13.6975]]]}},{"type":"Feature","properties":{"c":"103901","s":"คลองเตยเหนือ","d":"วัฒนา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5633,13.7479],[100.5501,13.7484],[100.5507,13.7428],[100.5652,13.7338],[100.5661,13.7331],[100.5707,13.7465],[100.5633,13.7479]]]}},{"type":"Feature","properties":{"c":"101804","s":"คลองต้นไทร","d":"คลองสาน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.512,13.7193],[100.5123,13.7294],[100.4927,13.7247],[100.4929,13.7213],[100.493,13.721],[100.5113,13.7173],[100.512,13.7193]]]}},{"type":"Feature","properties":{"c":"730702","s":"คลองโยง","d":"พุทธมณฑล","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.286,13.8923],[100.2561,13.9045],[100.2633,13.8779],[100.2639,13.8758],[100.2644,13.8293],[100.2849,13.8311],[100.3133,13.8348],[100.2968,13.8696],[100.286,13.8923]]]}},{"type":"Feature","properties":{"c":"100305","s":"โคกแฝด","d":"หนองจอก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.8539,13.8211],[100.8512,13.8577],[100.8318,13.8558],[100.7995,13.8495],[100.799,13.8493],[100.8077,13.808],[100.8539,13.8211]]]}},{"type":"Feature","properties":{"c":"740114","s":"โคกขาม","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.3395,13.5838],[100.3381,13.5852],[100.3194,13.5795],[100.2883,13.5645],[100.2854,13.5585],[100.2954,13.5511],[100.292,13.5006],[100.3585,13.4878],[100.3395,13.5838]]]}},{"type":"Feature","properties":{"c":"740111","s":"คอกกระบือ","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.3381,13.5852],[100.3527,13.6221],[100.3114,13.6133],[100.3194,13.5795],[100.3381,13.5852]]]}},{"type":"Feature","properties":{"c":"730311","s":"โคกพระเจดีย์","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1451,13.7441],[100.1028,13.7356],[100.1074,13.7048],[100.1523,13.7377],[100.1451,13.7441]]]}},{"type":"Feature","properties":{"c":"130503","s":"คูบางหลวง","d":"ลาดหลุมแก้ว","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4815,14.0587],[100.4522,14.0873],[100.4435,14.0405],[100.4426,14.0189],[100.4499,14.0156],[100.4896,14.026],[100.4966,14.0471],[100.4815,14.0587]]]}},{"type":"Feature","properties":{"c":"100306","s":"คู้ฝั่งเหนือ","d":"หนองจอก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.8294,13.8892],[100.7928,13.8938],[100.7874,13.88],[100.7995,13.8495],[100.8318,13.8558],[100.8294,13.8892]]]}},{"type":"Feature","properties":{"c":"130601","s":"คูคต","d":"ลำลูกกา","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.6625,13.9304],[100.6635,13.9795],[100.6051,13.9655],[100.6065,13.9544],[100.6225,13.9503],[100.6625,13.9304]]]}},{"type":"Feature","properties":{"c":"130504","s":"คูขวาง","d":"ลาดหลุมแก้ว","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4522,14.0873],[100.4299,14.0957],[100.4228,14.0607],[100.4435,14.0405],[100.4522,14.0873]]]}},{"type":"Feature","properties":{"c":"102210","s":"คูหาสวรรค์","d":"ภาษีเจริญ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4635,13.7313],[100.4621,13.7444],[100.46,13.7439],[100.4584,13.7438],[100.458,13.7344],[100.4549,13.7234],[100.4635,13.7313]]]}},{"type":"Feature","properties":{"c":"101106","s":"ขุมทอง","d":"ลาดกระบัง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.8788,13.7379],[100.8608,13.7705],[100.8288,13.7018],[100.8593,13.6896],[100.8608,13.6969],[100.8788,13.7379]]]}},{"type":"Feature","properties":{"c":"730307","s":"ขุนแก้ว","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.206,13.7641],[100.2265,13.7881],[100.2015,13.7881],[100.1914,13.7652],[100.1779,13.7474],[100.1785,13.7446],[100.206,13.7641]]]}},{"type":"Feature","properties":{"c":"120505","s":"ขุนศรี","d":"ไทรน้อย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3023,14.0381],[100.2671,14.0452],[100.2624,13.9981],[100.2982,13.9634],[100.3049,13.9721],[100.3102,13.9796],[100.3009,14.0254],[100.3023,14.0381]]]}},{"type":"Feature","properties":{"c":"120608","s":"เกาะเกร็ด","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4746,13.9183],[100.4692,13.9176],[100.4673,13.9094],[100.4889,13.8991],[100.4909,13.9041],[100.4911,13.9147],[100.4746,13.9183]]]}},{"type":"Feature","properties":{"c":"130704","s":"กระแชง","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5532,14.0508],[100.5455,14.056],[100.5252,14.042],[100.5467,14.0348],[100.5544,14.0422],[100.5532,14.0508]]]}},{"type":"Feature","properties":{"c":"730610","s":"กระทุ่มล้ม","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.3375,13.736],[100.3301,13.7631],[100.3273,13.7631],[100.3091,13.747],[100.3015,13.7202],[100.3303,13.7197],[100.3375,13.736]]]}},{"type":"Feature","properties":{"c":"100301","s":"กระทุ่มราย","d":"หนองจอก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.9309,13.8044],[100.9042,13.8484],[100.8512,13.8577],[100.8539,13.8211],[100.8607,13.8188],[100.9074,13.7864],[100.9309,13.8044]]]}},{"type":"Feature","properties":{"c":"730202","s":"กระตีบ","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.985,14.14],[99.9295,14.1255],[99.8923,14.0901],[99.9266,14.0746],[99.9566,14.0823],[99.9872,14.1029],[99.985,14.14]]]}},{"type":"Feature","properties":{"c":"740103","s":"โกรกกราก","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2656,13.5283],[100.2802,13.5422],[100.2777,13.54],[100.2656,13.5283]]]}},{"type":"Feature","properties":{"c":"730313","s":"แหลมบัว","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1758,13.8254],[100.1421,13.8943],[100.1165,13.8718],[100.1165,13.8675],[100.1292,13.8386],[100.1621,13.8256],[100.1758,13.8254]]]}},{"type":"Feature","properties":{"c":"110503","s":"แหลมฟ้าผ่า","d":"พระสมุทรเจดีย์","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5883,13.5879],[100.577,13.5893],[100.5385,13.5653],[100.5303,13.5123],[100.4629,13.5002],[100.5724,13.5149],[100.5973,13.539],[100.5827,13.5801],[100.5883,13.5879]]]}},{"type":"Feature","properties":{"c":"120405","s":"ละหาร","d":"บางบัวทอง","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3805,13.9888],[100.3558,14.0004],[100.4265,13.9236],[100.4413,13.9206],[100.4445,13.9363],[100.3971,13.9845],[100.3805,13.9888]]]}},{"type":"Feature","properties":{"c":"130114","s":"หลักหก","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.6051,13.9655],[100.6033,13.9808],[100.5716,13.9728],[100.5676,13.9516],[100.6065,13.9544],[100.6051,13.9655]]]}},{"type":"Feature","properties":{"c":"740302","s":"หลักสาม","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.0969,13.5846],[100.1487,13.5336],[100.159,13.5385],[100.1859,13.5756],[100.1757,13.5819],[100.1518,13.5961],[100.147,13.6103],[100.131,13.602],[100.0969,13.5846]]]}},{"type":"Feature","properties":{"c":"104004","s":"หลักสอง","d":"บางแค","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.3848,13.6714],[100.4068,13.6764],[100.4068,13.7108],[100.3735,13.7081],[100.3772,13.7006],[100.3848,13.6714]]]}},{"type":"Feature","properties":{"c":"740307","s":"หลักสอง","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.163,13.6273],[100.1142,13.6523],[100.1036,13.6496],[100.131,13.602],[100.147,13.6103],[100.1698,13.6225],[100.163,13.6273]]]}},{"type":"Feature","properties":{"c":"730403","s":"ลำเหย","d":"ดอนตูม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0707,13.9526],[100.0516,13.9864],[100.0172,13.9432],[100.0581,13.9295],[100.0707,13.9526]]]}},{"type":"Feature","properties":{"c":"730408","s":"ลำลูกบัว","d":"ดอนตูม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1141,14.0431],[100.0643,14.0326],[100.0629,14.0132],[100.0999,13.9819],[100.1141,14.0431]]]}},{"type":"Feature","properties":{"c":"130604","s":"ลำลูกกา","d":"ลำลูกกา","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7926,13.9315],[100.8005,14.0284],[100.8005,14.0293],[100.7556,14.0138],[100.7477,13.9182],[100.7926,13.9314],[100.7926,13.9315]]]}},{"type":"Feature","properties":{"c":"100307","s":"ลำผักชี","d":"หนองจอก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.8539,13.8211],[100.8077,13.808],[100.7951,13.794],[100.8375,13.7676],[100.841,13.7706],[100.8607,13.8188],[100.8539,13.8211]]]}},{"type":"Feature","properties":{"c":"130304","s":"ลำผักกูด","d":"ธัญบุรี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.8005,14.0293],[100.8012,14.0602],[100.7555,14.0448],[100.7556,14.0138],[100.8005,14.0293]]]}},{"type":"Feature","properties":{"c":"730514","s":"ลำพญา","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2263,13.941],[100.2512,13.9802],[100.1805,13.9635],[100.18,13.9627],[100.2263,13.941]]]}},{"type":"Feature","properties":{"c":"730119","s":"ลำพยา","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0332,13.8044],[100.0361,13.828],[100.0041,13.8227],[99.9997,13.8027],[99.9987,13.7945],[100.0092,13.7947],[100.0332,13.8044]]]}},{"type":"Feature","properties":{"c":"120406","s":"ลำโพ","d":"บางบัวทอง","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4508,13.9482],[100.3971,13.9845],[100.4445,13.9363],[100.4508,13.9482]]]}},{"type":"Feature","properties":{"c":"101104","s":"ลำปลาทิว","d":"ลาดกระบัง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.8375,13.7676],[100.7951,13.794],[100.7686,13.782],[100.7692,13.728],[100.7916,13.7286],[100.8375,13.7676]]]}},{"type":"Feature","properties":{"c":"130606","s":"ลำไทร","d":"ลำลูกกา","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.8816,14.0058],[100.8443,14.0094],[100.8394,13.9365],[100.8517,13.9381],[100.8818,13.9424],[100.8816,14.0058]]]}},{"type":"Feature","properties":{"c":"100308","s":"ลำต้อยติ่ง","d":"หนองจอก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.9074,13.7864],[100.8607,13.8188],[100.841,13.7706],[100.8608,13.7705],[100.8788,13.7379],[100.9074,13.7864]]]}},{"type":"Feature","properties":{"c":"730322","s":"ลานตากฟ้า","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2644,13.8293],[100.2639,13.8758],[100.2554,13.8744],[100.2223,13.8437],[100.2236,13.8116],[100.2368,13.8105],[100.2644,13.8293]]]}},{"type":"Feature","properties":{"c":"101101","s":"ลาดกระบัง","d":"ลาดกระบัง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7391,13.7273],[100.7084,13.7308],[100.71,13.7168],[100.7611,13.7162],[100.7834,13.7166],[100.788,13.7166],[100.7916,13.7286],[100.7692,13.728],[100.7391,13.7273]]]}},{"type":"Feature","properties":{"c":"130502","s":"ลาดหลุมแก้ว","d":"ลาดหลุมแก้ว","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4423,14.0167],[100.3833,14.0453],[100.3811,13.9948],[100.4233,13.9839],[100.4423,14.0167]]]}},{"type":"Feature","properties":{"c":"103801","s":"ลาดพร้าว","d":"ลาดพร้าว","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6286,13.8256],[100.6371,13.8447],[100.6287,13.8427],[100.5907,13.8354],[100.5899,13.8323],[100.5883,13.803],[100.5884,13.8028],[100.6129,13.7948],[100.6151,13.7998],[100.6245,13.8174],[100.6286,13.8256]]]}},{"type":"Feature","properties":{"c":"130602","s":"ลาดสวาย","d":"ลำลูกกา","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7028,13.9167],[100.7062,13.9939],[100.6635,13.9795],[100.6625,13.9304],[100.687,13.9163],[100.7028,13.9167]]]}},{"type":"Feature","properties":{"c":"103001","s":"ลาดยาว","d":"จตุจักร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5865,13.8589],[100.5635,13.8552],[100.5436,13.8496],[100.5392,13.8306],[100.5683,13.8271],[100.5723,13.834],[100.5867,13.8583],[100.5865,13.8589]]]}},{"type":"Feature","properties":{"c":"100704","s":"ลุมพินี","d":"ปทุมวัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5501,13.7484],[100.541,13.7494],[100.5366,13.7296],[100.5367,13.7295],[100.5447,13.7262],[100.5529,13.7228],[100.5507,13.7428],[100.5501,13.7484]]]}},{"type":"Feature","properties":{"c":"100401","s":"มหาพฤฒาราม","d":"บางรัก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5216,13.7357],[100.5157,13.738],[100.5154,13.7322],[100.5157,13.7302],[100.5293,13.7326],[100.5287,13.7329],[100.5216,13.7357]]]}},{"type":"Feature","properties":{"c":"740101","s":"มหาชัย","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2802,13.5422],[100.2954,13.5511],[100.2854,13.5585],[100.2721,13.5601],[100.261,13.5319],[100.2777,13.54],[100.2802,13.5422]]]}},{"type":"Feature","properties":{"c":"120207","s":"มหาสวัสดิ์","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4642,13.7973],[100.4542,13.8033],[100.445,13.8086],[100.4246,13.8176],[100.4132,13.8052],[100.4152,13.8012],[100.4252,13.8006],[100.4642,13.7973]]]}},{"type":"Feature","properties":{"c":"730703","s":"มหาสวัสดิ์","d":"พุทธมณฑล","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2796,13.802],[100.2849,13.8311],[100.2644,13.8293],[100.2368,13.8105],[100.237,13.8057],[100.2479,13.8017],[100.2625,13.8022],[100.2723,13.802],[100.2796,13.802]]]}},{"type":"Feature","properties":{"c":"103704","s":"มักกะสัน","d":"ราชเทวี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.565,13.7551],[100.5434,13.7627],[100.5411,13.7499],[100.541,13.7494],[100.5501,13.7484],[100.5633,13.7479],[100.565,13.7551]]]}},{"type":"Feature","properties":{"c":"730106","s":"มาบแค","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0761,13.8996],[100.0709,13.9007],[100.0504,13.8707],[100.0613,13.8516],[100.081,13.8426],[100.0925,13.8746],[100.0963,13.8802],[100.0761,13.8996]]]}},{"type":"Feature","properties":{"c":"101001","s":"มีนบุรี","d":"มีนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7442,13.8346],[100.7297,13.8365],[100.6968,13.8155],[100.705,13.7977],[100.7164,13.7781],[100.7389,13.7732],[100.7466,13.7779],[100.7492,13.8221],[100.7442,13.8346]]]}},{"type":"Feature","properties":{"c":"740109","s":"นาดี","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.3125,13.6196],[100.2815,13.6192],[100.2706,13.605],[100.272,13.591],[100.2883,13.5645],[100.3194,13.5795],[100.3114,13.6133],[100.3125,13.6196]]]}},{"type":"Feature","properties":{"c":"740107","s":"นาโคก","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.1329,13.4426],[100.1045,13.5027],[100.0532,13.4858],[100.0733,13.4558],[100.0788,13.4253],[100.1329,13.4426]]]}},{"type":"Feature","properties":{"c":"110501","s":"นาเกลือ","d":"พระสมุทรเจดีย์","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5385,13.5653],[100.5092,13.5768],[100.5041,13.5529],[100.4466,13.5409],[100.4537,13.502],[100.4629,13.5002],[100.5303,13.5123],[100.5385,13.5653]]]}},{"type":"Feature","properties":{"c":"130507","s":"หน้าไม้","d":"ลาดหลุมแก้ว","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.3463,14.0991],[100.3415,14.1009],[100.3316,14.0564],[100.3558,14.0004],[100.3805,13.9888],[100.3811,13.9948],[100.3833,14.0453],[100.3463,14.0991]]]}},{"type":"Feature","properties":{"c":"110505","s":"ในคลองบางปลากด","d":"พระสมุทรเจดีย์","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.577,13.5893],[100.5409,13.609],[100.521,13.6051],[100.5115,13.5969],[100.5092,13.5768],[100.5385,13.5653],[100.577,13.5893]]]}},{"type":"Feature","properties":{"c":"730301","s":"นครชัยศรี","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2015,13.7881],[100.1865,13.8046],[100.1817,13.805],[100.191,13.7711],[100.1914,13.7652],[100.2015,13.7881]]]}},{"type":"Feature","properties":{"c":"730111","s":"นครปฐม","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0613,13.8516],[100.0504,13.8707],[100.0331,13.8699],[100.0296,13.8666],[100.0276,13.8393],[100.0361,13.8346],[100.0459,13.8242],[100.0568,13.8246],[100.0613,13.8516]]]}},{"type":"Feature","properties":{"c":"730513","s":"นราภิรมย์","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2749,13.9349],[100.2982,13.9634],[100.2624,13.9981],[100.2592,13.9956],[100.2512,13.9802],[100.2263,13.941],[100.256,13.9053],[100.2561,13.9045],[100.286,13.8923],[100.2749,13.9349]]]}},{"type":"Feature","properties":{"c":"102704","s":"นวมินทร์","d":"บึงกุ่ม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6503,13.8099],[100.6286,13.8256],[100.6245,13.8174],[100.6482,13.7848],[100.6503,13.8099]]]}},{"type":"Feature","properties":{"c":"730323","s":"งิ้วราย","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2135,13.8103],[100.1863,13.8116],[100.1861,13.8062],[100.237,13.8057],[100.2368,13.8105],[100.2236,13.8116],[100.2135,13.8103]]]}},{"type":"Feature","properties":{"c":"730510","s":"นิลเพชร","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.282,14.1468],[100.1899,14.1412],[100.1945,14.124],[100.214,14.0921],[100.2771,14.1012],[100.2818,14.1269],[100.282,14.1468]]]}},{"type":"Feature","properties":{"c":"103202","s":"หนองบอน","d":"ประเวศ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6746,13.7005],[100.651,13.703],[100.6341,13.7008],[100.6402,13.6779],[100.6538,13.669],[100.6669,13.6682],[100.6746,13.7005]]]}},{"type":"Feature","properties":{"c":"740306","s":"หนองบัว","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.0769,13.6574],[100.0603,13.6603],[100.0603,13.6594],[100.0545,13.6292],[100.0759,13.5741],[100.0969,13.5846],[100.0769,13.6574]]]}},{"type":"Feature","properties":{"c":"100302","s":"หนองจอก","d":"หนองจอก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.908,13.897],[100.8495,13.886],[100.8294,13.8892],[100.8318,13.8558],[100.8512,13.8577],[100.9042,13.8484],[100.9047,13.85],[100.908,13.897]]]}},{"type":"Feature","properties":{"c":"730116","s":"หนองดินแดง","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9997,13.8027],[99.9633,13.8214],[99.969,13.8063],[99.9708,13.8012],[99.9934,13.7566],[99.9987,13.7945],[99.9997,13.8027]]]}},{"type":"Feature","properties":{"c":"102302","s":"หนองแขม","d":"หนองแขม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.3848,13.6714],[100.3772,13.7006],[100.3322,13.6904],[100.3394,13.655],[100.3468,13.6553],[100.3848,13.6714]]]}},{"type":"Feature","properties":{"c":"102303","s":"หนองค้างพลู","d":"หนองแขม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.365,13.7263],[100.3594,13.738],[100.3375,13.736],[100.3303,13.7197],[100.332,13.6914],[100.3322,13.6904],[100.3772,13.7006],[100.3735,13.7081],[100.365,13.7263]]]}},{"type":"Feature","properties":{"c":"730214","s":"หนองกระทุ่ม","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.8693,14.0744],[99.8141,14.0642],[99.8476,14.0527],[99.834,14.0088],[99.8599,14.017],[99.8693,14.0744]]]}},{"type":"Feature","properties":{"c":"730124","s":"หนองงูเหลือม","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9716,13.9451],[99.9392,13.938],[99.927,13.934],[99.924,13.8998],[99.9437,13.8892],[99.9809,13.8857],[99.9834,13.9193],[99.9716,13.9451]]]}},{"type":"Feature","properties":{"c":"740207","s":"หนองนกไข่","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2015,13.6513],[100.1987,13.6771],[100.1817,13.689],[100.1714,13.6806],[100.2015,13.6513]]]}},{"type":"Feature","properties":{"c":"730113","s":"หนองปากโลง","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9958,13.8746],[99.98,13.8818],[100.0041,13.8227],[100.0361,13.828],[100.0361,13.8346],[100.0276,13.8393],[99.9958,13.8746]]]}},{"type":"Feature","properties":{"c":"120503","s":"หนองเพรางาย","d":"ไทรน้อย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3306,13.9215],[100.2749,13.9349],[100.286,13.8923],[100.2968,13.8696],[100.3418,13.8834],[100.3306,13.9215]]]}},{"type":"Feature","properties":{"c":"110309","s":"หนองปรือ","d":"บางพลี","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.7834,13.7166],[100.7611,13.7162],[100.7424,13.6496],[100.7914,13.6619],[100.7907,13.6772],[100.7834,13.7166]]]}},{"type":"Feature","properties":{"c":"130405","s":"หนองสามวัง","d":"หนองเสือ","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.9138,14.1808],[100.8576,14.1631],[100.8461,14.1537],[100.8465,14.0758],[100.9141,14.0996],[100.9136,14.1355],[100.9138,14.1808]]]}},{"type":"Feature","properties":{"c":"740305","s":"หนองสองห้อง","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.0759,13.5741],[100.0545,13.6292],[100.0311,13.6126],[100.0372,13.5825],[100.046,13.5593],[100.0667,13.5692],[100.0759,13.5741]]]}},{"type":"Feature","properties":{"c":"130407","s":"นพรัตน์","d":"หนองเสือ","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.8916,14.2437],[100.8915,14.276],[100.8459,14.2543],[100.8461,14.158],[100.8461,14.1537],[100.8576,14.1631],[100.8916,14.2437]]]}},{"type":"Feature","properties":{"c":"102705","s":"นวลจันทร์","d":"บึงกุ่ม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6608,13.82],[100.646,13.8474],[100.6371,13.8447],[100.6286,13.8256],[100.6503,13.8099],[100.6608,13.82]]]}},{"type":"Feature","properties":{"c":"104202","s":"ออเงิน","d":"สายไหม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.687,13.9163],[100.6494,13.9013],[100.6531,13.8864],[100.6845,13.8742],[100.687,13.9163]]]}},{"type":"Feature","properties":{"c":"120609","s":"อ้อมเกร็ด","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4692,13.9176],[100.4458,13.9199],[100.4393,13.8994],[100.4479,13.8979],[100.4673,13.9094],[100.4692,13.9176]]]}},{"type":"Feature","properties":{"c":"740202","s":"อ้อมน้อย","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.3303,13.7197],[100.3015,13.7202],[100.2835,13.7118],[100.2602,13.6847],[100.2603,13.6843],[100.296,13.6825],[100.332,13.6914],[100.3303,13.7197]]]}},{"type":"Feature","properties":{"c":"730616","s":"อ้อมใหญ่","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2835,13.7118],[100.2642,13.7179],[100.2502,13.7056],[100.2602,13.6847],[100.2835,13.7118]]]}},{"type":"Feature","properties":{"c":"110504","s":"ปากคลองบางปลากด","d":"พระสมุทรเจดีย์","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5712,13.6109],[100.5514,13.6186],[100.5409,13.609],[100.577,13.5893],[100.5883,13.5879],[100.5896,13.608],[100.5712,13.6109]]]}},{"type":"Feature","properties":{"c":"102209","s":"ปากคลองภาษีเจริญ","d":"ภาษีเจริญ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4716,13.7224],[100.4635,13.7313],[100.4549,13.7234],[100.4599,13.7139],[100.4692,13.716],[100.4716,13.7224]]]}},{"type":"Feature","properties":{"c":"120601","s":"ปากเกร็ด","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5284,13.9091],[100.4993,13.9253],[100.4911,13.9147],[100.4909,13.9041],[100.5295,13.904],[100.5284,13.9091]]]}},{"type":"Feature","properties":{"c":"110101","s":"ปากน้ำ","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6054,13.574],[100.6104,13.5941],[100.5984,13.607],[100.587,13.6288],[100.5858,13.6293],[100.5896,13.608],[100.5883,13.5879],[100.5827,13.5801],[100.6054,13.574]]]}},{"type":"Feature","properties":{"c":"100703","s":"ปทุมวัน","d":"ปทุมวัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.541,13.7494],[100.5312,13.7493],[100.5287,13.7329],[100.5293,13.7326],[100.5339,13.7307],[100.5366,13.7296],[100.541,13.7494]]]}},{"type":"Feature","properties":{"c":"730515","s":"ไผ่หูช้าง","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1373,14.0704],[100.1032,14.0963],[100.064,14.0722],[100.0534,14.0461],[100.0643,14.0326],[100.1141,14.0431],[100.1258,14.0386],[100.1373,14.0704]]]}},{"type":"Feature","properties":{"c":"730309","s":"พะเนียด","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1402,13.7961],[100.1239,13.8084],[100.1097,13.7899],[100.1056,13.7838],[100.1206,13.7818],[100.1402,13.7961]]]}},{"type":"Feature","properties":{"c":"740113","s":"พันท้ายนรสิงห์","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.3889,13.5717],[100.3784,13.6014],[100.3395,13.5838],[100.3585,13.4878],[100.4088,13.4934],[100.4152,13.5572],[100.3889,13.5717]]]}},{"type":"Feature","properties":{"c":"120407","s":"พิมลราช","d":"บางบัวทอง","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4155,13.9171],[100.3562,13.9499],[100.3504,13.9424],[100.3391,13.9287],[100.3729,13.9246],[100.387,13.9125],[100.4393,13.8994],[100.4458,13.9199],[100.4413,13.9206],[100.4265,13.9236],[100.4246,13.9191],[100.4285,13.9095],[100.4156,13.9081],[100.4155,13.9171]]]}},{"type":"Feature","properties":{"c":"104504","s":"พลับพลา","d":"วังทองหลาง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6283,13.7756],[100.6092,13.7863],[100.5966,13.7596],[100.6041,13.7512],[100.6305,13.7633],[100.6283,13.7756]]]}},{"type":"Feature","properties":{"c":"103303","s":"พระโขนง","d":"คลองเตย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5845,13.7201],[100.5777,13.725],[100.5763,13.713],[100.5821,13.6975],[100.5839,13.6961],[100.6017,13.7047],[100.5845,13.7201]]]}},{"type":"Feature","properties":{"c":"103903","s":"พระโขนงเหนือ","d":"วัฒนา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6055,13.7236],[100.5845,13.7201],[100.6017,13.7047],[100.6057,13.7065],[100.6055,13.7236]]]}},{"type":"Feature","properties":{"c":"730101","s":"พระปฐมเจดีย์","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0808,13.8223],[100.0568,13.8246],[100.0459,13.8242],[100.0581,13.8156],[100.0778,13.8185],[100.0808,13.8223]]]}},{"type":"Feature","properties":{"c":"730103","s":"พระประโทน","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0943,13.7942],[100.0859,13.8244],[100.0808,13.8223],[100.0778,13.8185],[100.0778,13.8011],[100.0943,13.7942]]]}},{"type":"Feature","properties":{"c":"100101","s":"พระบรมมหาราชวัง","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4945,13.7576],[100.491,13.7619],[100.4893,13.7598],[100.4883,13.7482],[100.492,13.7422],[100.4934,13.7408],[100.4963,13.7485],[100.4962,13.7513],[100.4952,13.7566],[100.4949,13.7572],[100.4945,13.7576]]]}},{"type":"Feature","properties":{"c":"110110","s":"แพรกษา","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6736,13.5458],[100.6626,13.5974],[100.631,13.5993],[100.6229,13.5892],[100.6255,13.5561],[100.6736,13.5458]]]}},{"type":"Feature","properties":{"c":"110117","s":"แพรกษาใหม่","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6685,13.6038],[100.6469,13.6125],[100.631,13.5993],[100.6626,13.5974],[100.6736,13.5458],[100.7018,13.5323],[100.7011,13.5705],[100.6685,13.6038]]]}},{"type":"Feature","properties":{"c":"730118","s":"โพรงมะเดื่อ","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9809,13.8857],[99.9437,13.8892],[99.9569,13.8356],[99.9633,13.8214],[99.9997,13.8027],[100.0041,13.8227],[99.98,13.8818],[99.9809,13.8857]]]}},{"type":"Feature","properties":{"c":"130608","s":"พืชอุดม","d":"ลำลูกกา","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.9145,14.0084],[100.8816,14.0058],[100.8818,13.9424],[100.914,13.9465],[100.9142,13.9613],[100.9144,14.0069],[100.9145,14.0084]]]}},{"type":"Feature","properties":{"c":"120208","s":"ปลายบาง","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4132,13.8052],[100.403,13.824],[100.3917,13.8259],[100.3987,13.8018],[100.4111,13.8013],[100.4152,13.8012],[100.4132,13.8052]]]}},{"type":"Feature","properties":{"c":"100801","s":"ป้อมปราบ","d":"ป้อมปราบศัตรูพ่าย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5163,13.7456],[100.507,13.7481],[100.5057,13.7456],[100.5123,13.7404],[100.5157,13.738],[100.5163,13.7456]]]}},{"type":"Feature","properties":{"c":"130301","s":"ประชาธิปัตย์","d":"ธัญบุรี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.6635,13.9795],[100.664,14.0082],[100.6532,14.0075],[100.632,14.0027],[100.6014,13.9956],[100.6033,13.9808],[100.6051,13.9655],[100.6635,13.9795]]]}},{"type":"Feature","properties":{"c":"103201","s":"ประเวศ","d":"ประเวศ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7084,13.7325],[100.659,13.7379],[100.651,13.703],[100.6746,13.7005],[100.71,13.6952],[100.71,13.7168],[100.7084,13.7308],[100.7084,13.7325]]]}},{"type":"Feature","properties":{"c":"110207","s":"เปร็ง","d":"บางบ่อ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.868,13.6938],[100.8608,13.6969],[100.8593,13.6896],[100.8526,13.6451],[100.8978,13.6408],[100.8994,13.6478],[100.9181,13.6755],[100.8884,13.6861],[100.868,13.6938]]]}},{"type":"Feature","properties":{"c":"110308","s":"ราชาเทวะ","d":"บางพลี","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.7611,13.7162],[100.71,13.7168],[100.71,13.6952],[100.7064,13.6786],[100.718,13.6284],[100.7424,13.6496],[100.7611,13.7162]]]}},{"type":"Feature","properties":{"c":"130501","s":"ระแหง","d":"ลาดหลุมแก้ว","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.4228,14.0607],[100.3463,14.0991],[100.3833,14.0453],[100.4423,14.0167],[100.4426,14.0189],[100.4435,14.0405],[100.4228,14.0607]]]}},{"type":"Feature","properties":{"c":"730608","s":"ไร่ขิง","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.3091,13.747],[100.2829,13.7616],[100.266,13.7609],[100.2589,13.7571],[100.2529,13.7323],[100.2587,13.7238],[100.2642,13.7179],[100.2835,13.7118],[100.3015,13.7202],[100.3091,13.747]]]}},{"type":"Feature","properties":{"c":"104302","s":"รามอินทรา","d":"คันนายาว","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6755,13.8564],[100.646,13.8474],[100.6608,13.82],[100.6751,13.7812],[100.6851,13.7867],[100.674,13.8522],[100.6755,13.8564]]]}},{"type":"Feature","properties":{"c":"730213","s":"รางพิกุล","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9562,14.0276],[99.9066,14.021],[99.9026,13.9881],[99.955,13.9941],[99.9771,13.9978],[99.9562,14.0276]]]}},{"type":"Feature","properties":{"c":"130303","s":"รังสิต","d":"ธัญบุรี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.7556,14.0138],[100.7555,14.0448],[100.7442,14.0402],[100.7209,14.0306],[100.7099,14.0239],[100.7062,13.9939],[100.7556,14.0138]]]}},{"type":"Feature","properties":{"c":"102401","s":"ราษฎร์บูรณะ","d":"ราษฎร์บูรณะ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5234,13.6779],[100.517,13.6827],[100.5061,13.6857],[100.4964,13.6561],[100.5175,13.6616],[100.5234,13.6779]]]}},{"type":"Feature","properties":{"c":"120502","s":"ราษฎร์นิยม","d":"ไทรน้อย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3558,14.0004],[100.3316,14.0564],[100.3415,14.1009],[100.344,14.115],[100.3082,14.1364],[100.3023,14.0381],[100.3009,14.0254],[100.3248,14.0606],[100.3527,13.9985],[100.3558,14.0004]]]}},{"type":"Feature","properties":{"c":"740304","s":"โรงเข้","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.12,13.5134],[100.0667,13.5692],[100.046,13.5593],[100.036,13.534],[100.029,13.5288],[100.0295,13.5078],[100.0532,13.4858],[100.1045,13.5027],[100.12,13.5134]]]}},{"type":"Feature","properties":{"c":"100701","s":"รองเมือง","d":"ปทุมวัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5192,13.7527],[100.5174,13.7531],[100.5169,13.7491],[100.5163,13.7456],[100.5157,13.738],[100.5216,13.7357],[100.5245,13.7498],[100.5192,13.7527]]]}},{"type":"Feature","properties":{"c":"730120","s":"สระกะเทียม","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9934,13.7566],[99.9708,13.8012],[99.9539,13.7817],[99.9735,13.7288],[99.9826,13.7333],[99.9968,13.7426],[99.9934,13.7566]]]}},{"type":"Feature","properties":{"c":"730209","s":"สระพัฒนา","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0628,14.1106],[99.9872,14.1029],[99.9566,14.0823],[100.0226,14.0746],[100.0603,14.09],[100.0628,14.1106]]]}},{"type":"Feature","properties":{"c":"730206","s":"สระสี่มุม","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0603,14.09],[100.0226,14.0746],[99.9566,14.0823],[99.9266,14.0746],[99.9285,14.0712],[99.964,14.0508],[100.0007,14.0302],[100.0534,14.0461],[100.064,14.0722],[100.0603,14.09]]]}},{"type":"Feature","properties":{"c":"101002","s":"แสนแสบ","d":"มีนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.8077,13.808],[100.799,13.8493],[100.7492,13.8221],[100.7466,13.7779],[100.7686,13.782],[100.7951,13.794],[100.8077,13.808]]]}},{"type":"Feature","properties":{"c":"104604","s":"ทรายกองดิน","d":"คลองสามวา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7651,13.869],[100.7293,13.8648],[100.7297,13.8365],[100.7442,13.8346],[100.7651,13.869]]]}},{"type":"Feature","properties":{"c":"104605","s":"ทรายกองดินใต้","d":"คลองสามวา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7874,13.88],[100.7651,13.869],[100.7442,13.8346],[100.7492,13.8221],[100.799,13.8493],[100.7995,13.8495],[100.7874,13.88]]]}},{"type":"Feature","properties":{"c":"120109","s":"ไทรม้า","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4847,13.8855],[100.4622,13.892],[100.4696,13.8484],[100.4701,13.8486],[100.4795,13.855],[100.4778,13.8598],[100.4847,13.8855]]]}},{"type":"Feature","properties":{"c":"104201","s":"สายไหม","d":"สายไหม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6625,13.9304],[100.6225,13.9503],[100.6221,13.9183],[100.6494,13.9013],[100.687,13.9163],[100.6625,13.9304]]]}},{"type":"Feature","properties":{"c":"730508","s":"ไทรงาม","d":"บางเลน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2771,14.1012],[100.214,14.0921],[100.1945,14.124],[100.1422,14.0668],[100.2182,14.0733],[100.2709,14.0666],[100.2771,14.1012]]]}},{"type":"Feature","properties":{"c":"120501","s":"ไทรน้อย","d":"ไทรน้อย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3496,13.9966],[100.3102,13.9796],[100.3049,13.9721],[100.3504,13.9424],[100.3562,13.9499],[100.3496,13.9966]]]}},{"type":"Feature","properties":{"c":"120504","s":"ไทรใหญ่","d":"ไทรน้อย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3023,14.0381],[100.3082,14.1364],[100.2818,14.1269],[100.2771,14.1012],[100.2709,14.0666],[100.2671,14.0452],[100.3023,14.0381]]]}},{"type":"Feature","properties":{"c":"130406","s":"ศาลาครุ","d":"หนองเสือ","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.9464,14.2371],[100.9511,14.2717],[100.8916,14.2437],[100.8576,14.1631],[100.9138,14.1808],[100.9139,14.2093],[100.9464,14.2371]]]}},{"type":"Feature","properties":{"c":"120209","s":"ศาลากลาง","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3917,13.8259],[100.3481,13.8248],[100.3192,13.8226],[100.3279,13.8041],[100.3987,13.8018],[100.3917,13.8259]]]}},{"type":"Feature","properties":{"c":"104802","s":"ศาลาธรรมสพน์","d":"ทวีวัฒนา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.3987,13.8018],[100.3279,13.8041],[100.3306,13.7732],[100.4068,13.7601],[100.4093,13.7805],[100.4111,13.8013],[100.3987,13.8018]]]}},{"type":"Feature","properties":{"c":"730701","s":"ศาลายา","d":"พุทธมณฑล","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.3192,13.8226],[100.3133,13.8348],[100.2849,13.8311],[100.2796,13.802],[100.3115,13.7888],[100.3273,13.7631],[100.3301,13.7631],[100.3306,13.7732],[100.3279,13.8041],[100.3192,13.8226]]]}},{"type":"Feature","properties":{"c":"130703","s":"สามโคก","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5455,14.056],[100.5324,14.0665],[100.5112,14.0477],[100.5252,14.042],[100.5455,14.056]]]}},{"type":"Feature","properties":{"c":"730114","s":"สามควายเผือก","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1292,13.8386],[100.1165,13.8675],[100.0939,13.8299],[100.1255,13.813],[100.1292,13.8386]]]}},{"type":"Feature","properties":{"c":"730401","s":"สามง่าม","d":"ดอนตูม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0999,13.9819],[100.0629,14.0132],[100.0532,13.9884],[100.0516,13.9864],[100.0707,13.9526],[100.1133,13.9519],[100.1228,13.9595],[100.0999,13.9819]]]}},{"type":"Feature","properties":{"c":"730606","s":"สามพราน","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2353,13.7205],[100.2166,13.7346],[100.2071,13.7208],[100.228,13.7088],[100.2353,13.7205]]]}},{"type":"Feature","properties":{"c":"101401","s":"สามเสนใน","d":"พญาไท","p":10,"x":["พญาไท"]},"geometry":{"type":"Polygon","coordinates":[[[100.5507,13.7962],[100.5374,13.7979],[100.5279,13.7743],[100.539,13.766],[100.5434,13.7627],[100.5616,13.795],[100.5507,13.7962]]]}},{"type":"Feature","properties":{"c":"101704","s":"สามเสนนอก","d":"ห้วยขวาง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5883,13.803],[100.5749,13.8011],[100.5744,13.7897],[100.5865,13.7621],[100.5948,13.764],[100.5892,13.7975],[100.5884,13.8028],[100.5883,13.803]]]}},{"type":"Feature","properties":{"c":"104602","s":"สามวาตะวันออก","d":"คลองสามวา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7926,13.9314],[100.7477,13.9182],[100.7287,13.9175],[100.7293,13.8648],[100.7651,13.869],[100.7874,13.88],[100.7928,13.8938],[100.7926,13.9314]]]}},{"type":"Feature","properties":{"c":"104601","s":"สามวาตะวันตก","d":"คลองสามวา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.7293,13.8648],[100.7287,13.9175],[100.7028,13.9167],[100.687,13.9163],[100.6845,13.8742],[100.6804,13.8588],[100.7293,13.8648]]]}},{"type":"Feature","properties":{"c":"102107","s":"แสมดำ","d":"บางขุนเทียน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4485,13.6817],[100.4468,13.6826],[100.3765,13.6197],[100.3784,13.6014],[100.3889,13.5717],[100.4468,13.6299],[100.4488,13.6753],[100.4485,13.6817]]]}},{"type":"Feature","properties":{"c":"730315","s":"สัมปทวน","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1979,13.8428],[100.1964,13.8447],[100.1915,13.8416],[100.1761,13.8252],[100.1863,13.8116],[100.2135,13.8103],[100.1979,13.8428]]]}},{"type":"Feature","properties":{"c":"101302","s":"สัมพันธวงศ์","d":"สัมพันธวงศ์","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5098,13.7348],[100.5123,13.7404],[100.5057,13.7456],[100.5039,13.7468],[100.5032,13.7448],[100.5065,13.737],[100.5098,13.7348]]]}},{"type":"Feature","properties":{"c":"100104","s":"สำราญราษฎร์","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5055,13.7538],[100.5024,13.7546],[100.5019,13.7517],[100.5013,13.748],[100.5041,13.7477],[100.5055,13.7538]]]}},{"type":"Feature","properties":{"c":"101507","s":"สำเหร่","d":"ธนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.493,13.721],[100.4929,13.7213],[100.4914,13.7211],[100.4858,13.7048],[100.4922,13.7009],[100.4986,13.7051],[100.493,13.721]]]}},{"type":"Feature","properties":{"c":"110414","s":"สำโรง","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5931,13.6485],[100.5921,13.6638],[100.5795,13.6692],[100.5787,13.6683],[100.5704,13.6607],[100.5931,13.6485]]]}},{"type":"Feature","properties":{"c":"110415","s":"สำโรงกลาง","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5931,13.6485],[100.5704,13.6607],[100.557,13.6557],[100.5547,13.6564],[100.554,13.6508],[100.5918,13.6434],[100.5931,13.6485]]]}},{"type":"Feature","properties":{"c":"110102","s":"สำโรงเหนือ","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6448,13.6536],[100.5921,13.6638],[100.5931,13.6485],[100.6291,13.6288],[100.6448,13.6536]]]}},{"type":"Feature","properties":{"c":"110407","s":"สำโรงใต้","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5918,13.6434],[100.554,13.6508],[100.5648,13.6408],[100.5688,13.6373],[100.5728,13.6338],[100.5858,13.6293],[100.587,13.6288],[100.59,13.6379],[100.5918,13.6434]]]}},{"type":"Feature","properties":{"c":"100105","s":"ศาลเจ้าพ่อเสือ","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4987,13.7556],[100.4952,13.7566],[100.4962,13.7513],[100.4982,13.7515],[100.4987,13.7556]]]}},{"type":"Feature","properties":{"c":"103605","s":"สนามบิน","d":"ดอนเมือง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6225,13.9503],[100.6065,13.9544],[100.6024,13.9226],[100.5844,13.8905],[100.5948,13.8876],[100.6111,13.8998],[100.6221,13.9183],[100.6225,13.9503]]]}},{"type":"Feature","properties":{"c":"730107","s":"สนามจันทร์","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0459,13.8242],[100.0361,13.8346],[100.0361,13.828],[100.0332,13.8044],[100.0484,13.7773],[100.0636,13.7858],[100.0581,13.8156],[100.0459,13.8242]]]}},{"type":"Feature","properties":{"c":"120401","s":"โสนลอย","d":"บางบัวทอง","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4246,13.9191],[100.4155,13.9171],[100.4156,13.9081],[100.4285,13.9095],[100.4246,13.9191]]]}},{"type":"Feature","properties":{"c":"100106","s":"เสาชิงช้า","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5019,13.7517],[100.5024,13.7546],[100.4987,13.7556],[100.4982,13.7515],[100.5019,13.7517]]]}},{"type":"Feature","properties":{"c":"120304","s":"เสาธงหิน","d":"บางใหญ่","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.421,13.869],[100.3796,13.8968],[100.4164,13.8515],[100.4244,13.8522],[100.4287,13.863],[100.421,13.869]]]}},{"type":"Feature","properties":{"c":"104502","s":"สะพานสอง","d":"วังทองหลาง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6129,13.7948],[100.5884,13.8028],[100.5892,13.7975],[100.6092,13.7863],[100.6129,13.7948]]]}},{"type":"Feature","properties":{"c":"104401","s":"สะพานสูง","d":"สะพานสูง","p":10,"x":["ราษฎร์พัฒนา","ทับช้าง"]},"geometry":{"type":"Polygon","coordinates":[[[100.7164,13.7781],[100.705,13.7977],[100.6851,13.7867],[100.6751,13.7812],[100.6646,13.7754],[100.6591,13.7384],[100.659,13.7379],[100.7084,13.7325],[100.7164,13.7781]]]}},{"type":"Feature","properties":{"c":"103002","s":"เสนานิคม","d":"จตุจักร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5899,13.8439],[100.5867,13.8583],[100.5723,13.834],[100.5899,13.8323],[100.5907,13.8354],[100.5899,13.8439]]]}},{"type":"Feature","properties":{"c":"103602","s":"สีกัน","d":"ดอนเมือง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6065,13.9544],[100.5676,13.9516],[100.5675,13.9512],[100.5636,13.9345],[100.6024,13.9226],[100.6065,13.9544]]]}},{"type":"Feature","properties":{"c":"100402","s":"สีลม","d":"บางรัก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5447,13.7262],[100.5367,13.7295],[100.5167,13.7223],[100.5151,13.7186],[100.5303,13.7219],[100.5447,13.7262]]]}},{"type":"Feature","properties":{"c":"730314","s":"ศรีมหาโพธิ์","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1915,13.8416],[100.1538,13.8994],[100.1421,13.8943],[100.1758,13.8254],[100.1761,13.8252],[100.1915,13.8416]]]}},{"type":"Feature","properties":{"c":"100405","s":"สี่พระยา","d":"บางรัก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5339,13.7307],[100.5293,13.7326],[100.5157,13.7302],[100.5163,13.7254],[100.5339,13.7307]]]}},{"type":"Feature","properties":{"c":"100204","s":"สี่แยกมหานาค","d":"ดุสิต","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5209,13.7571],[100.5129,13.7602],[100.5164,13.7566],[100.5174,13.7531],[100.5192,13.7527],[100.5209,13.7571]]]}},{"type":"Feature","properties":{"c":"102004","s":"ศิริราช","d":"บางกอกน้อย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4883,13.7482],[100.4893,13.7598],[100.4753,13.7657],[100.473,13.7629],[100.4842,13.7468],[100.4883,13.7482]]]}},{"type":"Feature","properties":{"c":"110602","s":"ศีรษะจรเข้น้อย","d":"บางเสาธง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.8287,13.7018],[100.788,13.7166],[100.7834,13.7166],[100.7907,13.6772],[100.8236,13.6673],[100.8287,13.7018]]]}},{"type":"Feature","properties":{"c":"110603","s":"ศีรษะจรเข้ใหญ่","d":"บางเสาธง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.8236,13.6673],[100.7907,13.6772],[100.7914,13.6619],[100.7794,13.595],[100.7991,13.5906],[100.8236,13.6673]]]}},{"type":"Feature","properties":{"c":"730312","s":"ศรีษะทอง","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1621,13.8256],[100.1292,13.8386],[100.1255,13.813],[100.1239,13.8084],[100.1402,13.7961],[100.1614,13.8017],[100.1679,13.8068],[100.1621,13.8256]]]}},{"type":"Feature","properties":{"c":"101801","s":"สมเด็จเจ้าพระยา","d":"คลองสาน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4998,13.7386],[100.4976,13.7392],[100.4948,13.7309],[100.4935,13.727],[100.4938,13.7265],[100.5041,13.7376],[100.4998,13.7386]]]}},{"type":"Feature","properties":{"c":"110413","s":"ทรงคนอง","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5474,13.6726],[100.5281,13.6738],[100.5288,13.6648],[100.5382,13.6599],[100.5547,13.6564],[100.557,13.6557],[100.5583,13.6692],[100.5474,13.6726]]]}},{"type":"Feature","properties":{"c":"730602","s":"ทรงคนอง","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2723,13.802],[100.2625,13.8022],[100.2488,13.7573],[100.2589,13.7571],[100.266,13.7609],[100.2723,13.802]]]}},{"type":"Feature","properties":{"c":"100203","s":"สวนจิตรลดา","d":"ดุสิต","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5279,13.7743],[100.5214,13.778],[100.512,13.761],[100.5129,13.7602],[100.5209,13.7571],[100.5279,13.7743]]]}},{"type":"Feature","properties":{"c":"103401","s":"สวนหลวง","d":"สวนหลวง","p":10,"x":["อ่อนนุช","พัฒนาการ"]},"geometry":{"type":"Polygon","coordinates":[[[100.6591,13.7384],[100.6013,13.7481],[100.5982,13.7411],[100.6055,13.7236],[100.6057,13.7065],[100.6341,13.7008],[100.651,13.703],[100.659,13.7379],[100.6591,13.7384]]]}},{"type":"Feature","properties":{"c":"740204","s":"สวนหลวง","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.332,13.6914],[100.296,13.6825],[100.2682,13.6584],[100.2725,13.6567],[100.3065,13.6543],[100.3394,13.655],[100.3322,13.6904],[100.332,13.6914]]]}},{"type":"Feature","properties":{"c":"730121","s":"สวนป่าน","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9735,13.7288],[99.9539,13.7817],[99.9492,13.7728],[99.9379,13.7698],[99.9482,13.7376],[99.9602,13.7219],[99.9735,13.7288]]]}},{"type":"Feature","properties":{"c":"130113","s":"สวนพริกไทย","d":"เมืองปทุมธานี","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5975,14.0272],[100.5644,14.0313],[100.5573,14.0233],[100.58,14.0025],[100.6007,14.0014],[100.5975,14.0272]]]}},{"type":"Feature","properties":{"c":"740311","s":"สวนส้ม","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2132,13.6253],[100.2325,13.6429],[100.2308,13.6443],[100.2071,13.6425],[100.1698,13.6225],[100.147,13.6103],[100.1518,13.5961],[100.2132,13.6253]]]}},{"type":"Feature","properties":{"c":"120101","s":"สวนใหญ่","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4839,13.8606],[100.4778,13.8598],[100.4795,13.855],[100.4906,13.8401],[100.5024,13.8195],[100.5074,13.816],[100.5073,13.8214],[100.5047,13.826],[100.4839,13.8606]]]}},{"type":"Feature","properties":{"c":"100403","s":"สุริยวงศ์","d":"บางรัก","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5366,13.7296],[100.5339,13.7307],[100.5163,13.7254],[100.5167,13.7223],[100.5367,13.7295],[100.5366,13.7296]]]}},{"type":"Feature","properties":{"c":"730105","s":"ตาก้อง","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0709,13.9007],[100.0574,13.9137],[100.0336,13.8846],[100.0331,13.8699],[100.0504,13.8707],[100.0709,13.9007]]]}},{"type":"Feature","properties":{"c":"110401","s":"ตลาด","d":"พระประแดง","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.5382,13.6599],[100.5288,13.6648],[100.5302,13.6507],[100.5341,13.6493],[100.5382,13.6599]]]}},{"type":"Feature","properties":{"c":"104102","s":"ตลาดบางเขน","d":"หลักสี่","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5844,13.8905],[100.5829,13.8907],[100.5635,13.8552],[100.5865,13.8589],[100.5948,13.8876],[100.5844,13.8905]]]}},{"type":"Feature","properties":{"c":"730612","s":"ตลาดจินดา","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0603,13.6603],[100.0769,13.6574],[100.1036,13.6496],[100.1142,13.6523],[100.121,13.6791],[100.1074,13.7048],[100.0679,13.6934],[100.0603,13.6603]]]}},{"type":"Feature","properties":{"c":"120102","s":"ตลาดขวัญ","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5266,13.8569],[100.4839,13.8606],[100.5047,13.826],[100.5266,13.8569]]]}},{"type":"Feature","properties":{"c":"740201","s":"ตลาดกระทุ่มแบน","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2682,13.6584],[100.2495,13.6578],[100.2308,13.6443],[100.2325,13.6429],[100.2462,13.6474],[100.2669,13.6524],[100.2725,13.6567],[100.2682,13.6584]]]}},{"type":"Feature","properties":{"c":"101303","s":"ตลาดน้อย","d":"สัมพันธวงศ์","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5154,13.7322],[100.5157,13.738],[100.5123,13.7404],[100.5098,13.7348],[100.5123,13.7294],[100.5154,13.7322]]]}},{"type":"Feature","properties":{"c":"101505","s":"ตลาดพลู","d":"ธนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4801,13.7169],[100.4786,13.7226],[100.4716,13.7224],[100.4692,13.716],[100.4764,13.7112],[100.4783,13.7159],[100.4801,13.7169]]]}},{"type":"Feature","properties":{"c":"100108","s":"ตลาดยอด","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5002,13.7617],[100.4986,13.7627],[100.4945,13.7576],[100.4949,13.7572],[100.5002,13.7617]]]}},{"type":"Feature","properties":{"c":"101902","s":"ตลิ่งชัน","d":"ตลิ่งชัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4642,13.7973],[100.4252,13.8006],[100.455,13.7773],[100.4667,13.7815],[100.4659,13.7872],[100.4662,13.7889],[100.4642,13.7973]]]}},{"type":"Feature","properties":{"c":"740102","s":"ท่าฉลอม","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2656,13.5283],[100.2777,13.54],[100.261,13.5319],[100.2618,13.5307],[100.2656,13.5283]]]}},{"type":"Feature","properties":{"c":"740108","s":"ท่าจีน","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2721,13.5601],[100.2317,13.5442],[100.2429,13.5255],[100.2618,13.5307],[100.261,13.5319],[100.2721,13.5601]]]}},{"type":"Feature","properties":{"c":"120607","s":"ท่าอิฐ","d":"ปากเกร็ด","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4673,13.9094],[100.4479,13.8979],[100.4491,13.8917],[100.4496,13.8891],[100.4622,13.892],[100.4847,13.8855],[100.4904,13.8944],[100.4889,13.8991],[100.4673,13.9094]]]}},{"type":"Feature","properties":{"c":"102105","s":"ท่าข้าม","d":"บางขุนเทียน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4703,13.659],[100.4515,13.6754],[100.4488,13.6753],[100.4468,13.6299],[100.3889,13.5717],[100.4152,13.5572],[100.4088,13.4934],[100.4537,13.502],[100.4466,13.5409],[100.4546,13.6051],[100.4769,13.603],[100.4748,13.6353],[100.4703,13.659]]]}},{"type":"Feature","properties":{"c":"730601","s":"ท่าข้าม","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2587,13.7238],[100.2353,13.7205],[100.228,13.7088],[100.2305,13.7079],[100.2502,13.7056],[100.2642,13.7179],[100.2587,13.7238]]]}},{"type":"Feature","properties":{"c":"730306","s":"ท่ากระชับ","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1604,13.7408],[100.1575,13.79],[100.1426,13.7596],[100.1451,13.7441],[100.1523,13.7377],[100.1603,13.7374],[100.1604,13.7408]]]}},{"type":"Feature","properties":{"c":"740203","s":"ท่าไม้","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.296,13.6825],[100.2603,13.6843],[100.2418,13.678],[100.2495,13.6578],[100.2682,13.6584],[100.296,13.6825]]]}},{"type":"Feature","properties":{"c":"730308","s":"ท่าพระยา","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1614,13.8017],[100.1402,13.7961],[100.1206,13.7818],[100.1426,13.7596],[100.1575,13.79],[100.1614,13.8017]]]}},{"type":"Feature","properties":{"c":"100508","s":"ท่าแร้ง","d":"บางเขน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6531,13.8864],[100.6231,13.883],[100.619,13.8485],[100.6287,13.8427],[100.6371,13.8447],[100.646,13.8474],[100.6755,13.8564],[100.6804,13.8588],[100.6845,13.8742],[100.6531,13.8864]]]}},{"type":"Feature","properties":{"c":"120105","s":"ท่าทราย","d":"เมืองนนทบุรี","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.5503,13.8776],[100.4904,13.8944],[100.4847,13.8855],[100.5356,13.8679],[100.5492,13.873],[100.5503,13.8776]]]}},{"type":"Feature","properties":{"c":"740110","s":"ท่าทราย","d":"เมืองสมุทรสาคร","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2883,13.5645],[100.272,13.591],[100.1987,13.5487],[100.2317,13.5442],[100.2721,13.5601],[100.2854,13.5585],[100.2883,13.5645]]]}},{"type":"Feature","properties":{"c":"740210","s":"ท่าเสา","d":"กระทุ่มแบน","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.2625,13.6083],[100.2462,13.6474],[100.2325,13.6429],[100.2132,13.6253],[100.2279,13.6045],[100.2625,13.6083]]]}},{"type":"Feature","properties":{"c":"730609","s":"ท่าตลาด","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2488,13.7573],[100.2131,13.7579],[100.2094,13.7441],[100.2529,13.7323],[100.2589,13.7571],[100.2488,13.7573]]]}},{"type":"Feature","properties":{"c":"730304","s":"ท่าตำหนัก","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.191,13.7711],[100.1746,13.8059],[100.1679,13.8068],[100.1779,13.7474],[100.1914,13.7652],[100.191,13.7711]]]}},{"type":"Feature","properties":{"c":"110104","s":"ท้ายบ้าน","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6215,13.5406],[100.6054,13.574],[100.5827,13.5801],[100.5973,13.539],[100.615,13.5356],[100.6215,13.5406]]]}},{"type":"Feature","properties":{"c":"110116","s":"ท้ายบ้านใหม่","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6255,13.5561],[100.6229,13.5892],[100.6104,13.5941],[100.6054,13.574],[100.6215,13.5406],[100.6255,13.5561]]]}},{"type":"Feature","properties":{"c":"130711","s":"ท้ายเกาะ","d":"สามโคก","p":13},"geometry":{"type":"Polygon","coordinates":[[[100.5254,14.1223],[100.4818,14.1118],[100.5009,14.0945],[100.5369,14.118],[100.5254,14.1223]]]}},{"type":"Feature","properties":{"c":"730324","s":"ไทยาวาส","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.237,13.8057],[100.1861,13.8062],[100.1865,13.8046],[100.2015,13.7881],[100.2265,13.7881],[100.2479,13.8017],[100.237,13.8057]]]}},{"type":"Feature","properties":{"c":"730104","s":"ธรรมศาลา","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1255,13.813],[100.0939,13.8299],[100.0918,13.8295],[100.0859,13.8244],[100.0943,13.7942],[100.1097,13.7899],[100.1239,13.8084],[100.1255,13.813]]]}},{"type":"Feature","properties":{"c":"730109","s":"ถนนขาด","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0943,13.7942],[100.0778,13.8011],[100.0636,13.7858],[100.0484,13.7773],[100.0579,13.7567],[100.0984,13.7678],[100.1056,13.7838],[100.1097,13.7899],[100.0943,13.7942]]]}},{"type":"Feature","properties":{"c":"100206","s":"ถนนนครไชยศรี","d":"ดุสิต","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5374,13.7979],[100.5165,13.8004],[100.5084,13.789],[100.5056,13.7864],[100.5107,13.7832],[100.5214,13.778],[100.5279,13.7743],[100.5374,13.7979]]]}},{"type":"Feature","properties":{"c":"103702","s":"ถนนพญาไท","d":"ราชเทวี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5434,13.7627],[100.539,13.766],[100.5318,13.7532],[100.5411,13.7499],[100.5434,13.7627]]]}},{"type":"Feature","properties":{"c":"103703","s":"ถนนเพชรบุรี","d":"ราชเทวี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5318,13.7532],[100.5209,13.7571],[100.5192,13.7527],[100.5245,13.7498],[100.5312,13.7493],[100.541,13.7494],[100.5411,13.7499],[100.5318,13.7532]]]}},{"type":"Feature","properties":{"c":"730123","s":"ทัพหลวง","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9834,13.9193],[99.9809,13.8857],[99.98,13.8818],[99.9958,13.8746],[100.0296,13.8666],[100.0331,13.8699],[100.0336,13.8846],[99.9834,13.9193]]]}},{"type":"Feature","properties":{"c":"101105","s":"ทับยาว","d":"ลาดกระบัง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.8608,13.7705],[100.841,13.7706],[100.8375,13.7676],[100.7916,13.7286],[100.788,13.7166],[100.8287,13.7018],[100.8288,13.7018],[100.8608,13.7705]]]}},{"type":"Feature","properties":{"c":"104801","s":"ทวีวัฒนา","d":"ทวีวัฒนา","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4068,13.7601],[100.3306,13.7732],[100.3301,13.7631],[100.3375,13.736],[100.3594,13.738],[100.4062,13.7494],[100.4066,13.7587],[100.4068,13.7601]]]}},{"type":"Feature","properties":{"c":"120507","s":"ทวีวัฒนา","d":"ไทรน้อย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.3504,13.9424],[100.3049,13.9721],[100.2982,13.9634],[100.2749,13.9349],[100.3306,13.9215],[100.3391,13.9287],[100.3504,13.9424]]]}},{"type":"Feature","properties":{"c":"110115","s":"เทพารักษ์","d":"เมืองสมุทรปราการ","p":11},"geometry":{"type":"Polygon","coordinates":[[[100.6291,13.6288],[100.5931,13.6485],[100.5918,13.6434],[100.59,13.6379],[100.6218,13.622],[100.6469,13.6125],[100.6685,13.6038],[100.6706,13.6139],[100.6291,13.6288]]]}},{"type":"Feature","properties":{"c":"730207","s":"ทุ่งบัว","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.964,14.0508],[99.9285,14.0712],[99.9066,14.021],[99.9562,14.0276],[99.964,14.0508]]]}},{"type":"Feature","properties":{"c":"104902","s":"ทุ่งครุ","d":"ทุ่งครุ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5153,13.6447],[100.4748,13.6353],[100.4769,13.603],[100.5115,13.5969],[100.521,13.6051],[100.5204,13.6088],[100.5169,13.6378],[100.5153,13.6447]]]}},{"type":"Feature","properties":{"c":"730205","s":"ทุ่งขวาง","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9835,13.9566],[99.9771,13.9978],[99.955,13.9941],[99.9392,13.938],[99.9716,13.9451],[99.9835,13.9566]]]}},{"type":"Feature","properties":{"c":"730201","s":"ทุ่งกระพังโหม","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0035,13.9437],[100.0024,13.9965],[99.9771,13.9978],[99.9835,13.9566],[100.0035,13.9437]]]}},{"type":"Feature","properties":{"c":"730203","s":"ทุ่งลูกนก","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[99.9266,14.0746],[99.8923,14.0901],[99.8693,14.0744],[99.8599,14.017],[99.834,14.0088],[99.8322,14.0025],[99.8292,13.9984],[99.8395,13.9833],[99.8759,13.9612],[99.8975,13.9424],[99.9026,13.9881],[99.9066,14.021],[99.9285,14.0712],[99.9266,14.0746]]]}},{"type":"Feature","properties":{"c":"102803","s":"ทุ่งมหาเมฆ","d":"สาทร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5529,13.7228],[100.5447,13.7262],[100.5303,13.7219],[100.5332,13.716],[100.5376,13.7072],[100.5538,13.7165],[100.5529,13.7228]]]}},{"type":"Feature","properties":{"c":"730115","s":"ทุ่งน้อย","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0925,13.8746],[100.081,13.8426],[100.0918,13.8295],[100.0939,13.8299],[100.1165,13.8675],[100.1165,13.8718],[100.0925,13.8746]]]}},{"type":"Feature","properties":{"c":"103701","s":"ทุ่งพญาไท","d":"ราชเทวี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.539,13.766],[100.5279,13.7743],[100.5209,13.7571],[100.5318,13.7532],[100.539,13.766]]]}},{"type":"Feature","properties":{"c":"104101","s":"ทุ่งสองห้อง","d":"หลักสี่","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5635,13.8552],[100.5829,13.8907],[100.5589,13.9145],[100.557,13.9063],[100.5544,13.8953],[100.5503,13.8776],[100.5492,13.873],[100.5436,13.8496],[100.5635,13.8552]]]}},{"type":"Feature","properties":{"c":"102801","s":"ทุ่งวัดดอน","d":"สาทร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5332,13.716],[100.5303,13.7219],[100.5151,13.7186],[100.512,13.7193],[100.5113,13.7173],[100.5082,13.7125],[100.517,13.7096],[100.5332,13.716]]]}},{"type":"Feature","properties":{"c":"100202","s":"วชิรพยาบาล","d":"ดุสิต","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5107,13.7832],[100.5056,13.7864],[100.5023,13.7812],[100.499,13.7727],[100.5039,13.7698],[100.5107,13.7832]]]}},{"type":"Feature","properties":{"c":"100102","s":"วังบูรพาภิรมย์","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5013,13.748],[100.4963,13.7485],[100.4934,13.7408],[100.4976,13.7392],[100.4998,13.7386],[100.5032,13.7448],[100.5039,13.7468],[100.5041,13.7477],[100.5013,13.748]]]}},{"type":"Feature","properties":{"c":"100702","s":"วังใหม่","d":"ปทุมวัน","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5312,13.7493],[100.5245,13.7498],[100.5216,13.7357],[100.5287,13.7329],[100.5312,13.7493]]]}},{"type":"Feature","properties":{"c":"730215","s":"วังน้ำเขียว","d":"กำแพงแสน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0532,13.9884],[100.013,14.0079],[100.0024,13.9965],[100.0035,13.9437],[100.0172,13.9432],[100.0516,13.9864],[100.0532,13.9884]]]}},{"type":"Feature","properties":{"c":"730112","s":"วังตะกู","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0296,13.8666],[99.9958,13.8746],[100.0276,13.8393],[100.0296,13.8666]]]}},{"type":"Feature","properties":{"c":"104501","s":"วังทองหลาง","d":"วังทองหลาง","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.6092,13.7863],[100.5892,13.7975],[100.5948,13.764],[100.5966,13.7596],[100.6092,13.7863]]]}},{"type":"Feature","properties":{"c":"730117","s":"วังเย็น","d":"เมืองนครปฐม","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.0092,13.7947],[99.9987,13.7945],[99.9934,13.7566],[99.9968,13.7426],[100.0221,13.7502],[100.0092,13.7947]]]}},{"type":"Feature","properties":{"c":"101601","s":"วัดอรุณ","d":"บางกอกใหญ่","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.492,13.7422],[100.4883,13.7482],[100.4842,13.7468],[100.4802,13.746],[100.4878,13.736],[100.4879,13.7361],[100.492,13.7422]]]}},{"type":"Feature","properties":{"c":"120201","s":"วัดชลอ","d":"บางกรวย","p":12},"geometry":{"type":"Polygon","coordinates":[[[100.4715,13.8159],[100.4542,13.8033],[100.4642,13.7973],[100.4662,13.7889],[100.4834,13.7942],[100.4834,13.8062],[100.4715,13.8159]]]}},{"type":"Feature","properties":{"c":"101501","s":"วัดกัลยาณ์","d":"ธนบุรี","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4934,13.7408],[100.492,13.7422],[100.4879,13.7361],[100.4948,13.7309],[100.4976,13.7392],[100.4934,13.7408]]]}},{"type":"Feature","properties":{"c":"730303","s":"วัดแค","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.1758,13.8254],[100.1621,13.8256],[100.1679,13.8068],[100.1746,13.8059],[100.1817,13.805],[100.1865,13.8046],[100.1861,13.8062],[100.1863,13.8116],[100.1761,13.8252],[100.1758,13.8254]]]}},{"type":"Feature","properties":{"c":"730319","s":"วัดละมุด","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2146,13.8812],[100.1597,13.9086],[100.1538,13.8994],[100.1915,13.8416],[100.1964,13.8447],[100.2027,13.866],[100.2146,13.8812]]]}},{"type":"Feature","properties":{"c":"103102","s":"วัดพระยาไกร","d":"บางคอแหลม","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.517,13.7096],[100.5082,13.7125],[100.4986,13.7051],[100.5128,13.7022],[100.5146,13.7049],[100.517,13.7096]]]}},{"type":"Feature","properties":{"c":"100103","s":"วัดราชบพิธ","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5013,13.748],[100.5019,13.7517],[100.4982,13.7515],[100.4962,13.7513],[100.4963,13.7485],[100.5013,13.748]]]}},{"type":"Feature","properties":{"c":"100112","s":"วัดสามพระยา","d":"พระนคร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5039,13.7698],[100.499,13.7727],[100.4948,13.7656],[100.4986,13.7627],[100.5011,13.7669],[100.5039,13.7698]]]}},{"type":"Feature","properties":{"c":"730316","s":"วัดสำโรง","d":"นครชัยศรี","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2223,13.8437],[100.1979,13.8428],[100.2135,13.8103],[100.2236,13.8116],[100.2223,13.8437]]]}},{"type":"Feature","properties":{"c":"100805","s":"วัดโสมนัส","d":"ป้อมปราบศัตรูพ่าย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.512,13.761],[100.5094,13.7637],[100.5077,13.76],[100.506,13.7564],[100.5097,13.7565],[100.5164,13.7566],[100.5129,13.7602],[100.512,13.761]]]}},{"type":"Feature","properties":{"c":"101602","s":"วัดท่าพระ","d":"บางกอกใหญ่","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.4802,13.746],[100.4705,13.7431],[100.4621,13.7444],[100.4635,13.7313],[100.4716,13.7224],[100.4786,13.7226],[100.4857,13.7277],[100.4878,13.736],[100.4802,13.746]]]}},{"type":"Feature","properties":{"c":"100802","s":"วัดเทพศิรินทร์","d":"ป้อมปราบศัตรูพ่าย","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5169,13.7491],[100.5087,13.7519],[100.507,13.7481],[100.5163,13.7456],[100.5169,13.7491]]]}},{"type":"Feature","properties":{"c":"102902","s":"วงศ์สว่าง","d":"บางซื่อ","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5371,13.8217],[100.5392,13.8306],[100.5436,13.8496],[100.5073,13.8214],[100.5074,13.816],[100.5153,13.8133],[100.5371,13.8217]]]}},{"type":"Feature","properties":{"c":"730614","s":"ยายชา","d":"สามพราน","p":73},"geometry":{"type":"Polygon","coordinates":[[[100.2529,13.7323],[100.2094,13.7441],[100.2166,13.7346],[100.2353,13.7205],[100.2587,13.7238],[100.2529,13.7323]]]}},{"type":"Feature","properties":{"c":"102802","s":"ยานนาวา","d":"สาทร","p":10},"geometry":{"type":"Polygon","coordinates":[[[100.5376,13.7072],[100.5332,13.716],[100.517,13.7096],[100.5146,13.7049],[100.5299,13.7025],[100.5376,13.7072]]]}},{"type":"Feature","properties":{"c":"740303","s":"ยกกระบัตร","d":"บ้านแพ้ว","p":74},"geometry":{"type":"Polygon","coordinates":[[[100.1487,13.5336],[100.0969,13.5846],[100.0759,13.5741],[100.0667,13.5692],[100.12,13.5134],[100.1487,13.5336]]]}}]};
+
+/* =====================================================================
+   CONFIG
+   ===================================================================== */
+const CONFIG = {
+  // ถ้าอยากใช้ไฟล์ขอบเขตละเอียดกว่านี้ ใส่ URL GeoJSON ตรงนี้ (รองรับ property แบบ OCHA / OpenGISData / ของไฟล์นี้)
+  // โหลดไม่สำเร็จจะกลับมาใช้ข้อมูลในไฟล์อัตโนมัติ
+  GEOJSON_URL: '',
+  OSRM_SERVERS: ['https://router.project-osrm.org', 'https://routing.openstreetmap.de/routed-car'],
+  OSRM_TIMEOUT_MS: 10000,
+  SAMPLE_KM: 0.04,       // ระยะห่างจุดสุ่มตามเส้นทางตอนเช็คว่าอยู่แขวงไหน
+  MIN_MAIN_KM: 0.12,     // ขับผ่านในแขวงสั้นกว่านี้ไม่นับ (เฉี่ยวมุม)
+  BUFFER_KM: 1.5,
+  SNAP_MAX_KM: 0.8,      // ห่างเส้นทางเกินนี้ถือว่าออกนอกเส้น
+  ACC_MAX_M: 150,        // GPS แม่นยำน้อยกว่านี้ไม่ใช้ตัดสินว่าผ่านแขวง
+  TILE_URL: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+};
+
+/* ==CORE-START== (ส่วนคำนวณล้วน ไม่แตะ DOM — ทดสอบใน Node ได้) ============================ */
+
+/* ---------- 2. GeoJSON Load & Spatial Logic ---------- */
+const PROV = {10:'กรุงเทพมหานคร', 11:'สมุทรปราการ', 12:'นนทบุรี', 13:'ปทุมธานี', 73:'นครปฐม', 74:'สมุทรสาคร'};
+const PROV_ORDER = [10, 12, 13, 11, 74, 73];   // กทม. ก่อน แล้วไล่ปริมณฑลตามที่มักพูดถึง
+const DB = { recs: [] };
+
+// อ่าน property ได้ 3 รูปแบบ: ไฟล์นี้ / OCHA (mapthai) / OpenGISData-Thailand
+function readProps(p) {
+  if (p.s !== undefined) return { code:String(p.c), name:p.s, district:p.d, provCode:+p.p, alias:p.x || [] };
+  if (p.ADM3_TH) return { code:String(p.ADM3_PCODE||'').replace(/^TH/,''), name:p.ADM3_TH, district:p.ADM2_TH,
+                          provCode:+String(p.ADM1_PCODE||'').replace(/\D/g,''), alias:[] };
+  if (p.tam_th)  return { code:String(p.tam_code||''), name:p.tam_th, district:p.amp_th, provCode:+p.pro_code, alias:[] };
+  return null;
+}
+
+// ตัดคำนำหน้า (แขวง/ตำบล/เขต/อำเภอ/ต./อ.) และช่องว่าง เพื่อค้นหาแบบไม่ต้องพิมพ์คำนำหน้า
+function norm(s) {
+  return String(s || '').replace(/\s+/g, '').replace(/^(แขวง|ตำบล|เขต|อำเภอ|อ\.|ต\.)/, '').toLowerCase();
+}
+
+function buildRecs(fc) {
+  const recs = [];
+  for (const f of fc.features) {
+    const p = readProps(f.properties || {});
+    const g = f.geometry;
+    if (!p || !g || !PROV[p.provCode]) continue;
+    const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : null;
+    if (!polys) continue;
+    let x0 = 181, y0 = 91, x1 = -181, y1 = -91;
+    for (const poly of polys) for (const pt of poly[0]) {
+      if (pt[0] < x0) x0 = pt[0]; if (pt[0] > x1) x1 = pt[0];
+      if (pt[1] < y0) y0 = pt[1]; if (pt[1] > y1) y1 = pt[1];
+    }
+    const isBkk = p.provCode === 10;
+    const prov = PROV[p.provCode];
+    recs.push({
+      id: recs.length, code: p.code, name: p.name, district: p.district, prov, provCode: p.provCode, isBkk, alias: p.alias,
+      unit: isBkk ? 'แขวง' : 'ตำบล', distWord: isBkk ? 'เขต' : 'อำเภอ',
+      // ป้ายเต็ม ใช้แยกชื่อซ้ำ เช่น แขวงบางมด (เขตจอมทอง) / แขวงบางมด (เขตทุ่งครุ)
+      label: isBkk ? `แขวง${p.name} (เขต${p.district})` : `ตำบล${p.name} (อำเภอ${p.district} จ.${prov})`,
+      sub: (isBkk ? `เขต${p.district}` : `อำเภอ${p.district} จ.${prov}`) + (p.alias.length ? ` · รวมแขวง${p.alias.join(' ')}` : ''),
+      keys: [norm(p.name), ...p.alias.map(norm)], dkey: norm(p.district), pkey: norm(prov),
+      geom: g, polys, bbox: [x0, y0, x1, y1], _rep: null
+    });
+  }
+  return recs;
+}
+
+// จุดที่อยู่ "ในพื้นที่" แน่นอน (centroid ของรูปเว้าอาจตกนอกแขวง) — ใช้ Turf
+function repOf(r) {
+  if (!r._rep) r._rep = turf.pointOnFeature({ type:'Feature', properties:{}, geometry:r.geom }).geometry.coordinates;
+  return r._rep;
+}
+
+/* ---------- 1. Smart Search & Disambiguation ---------- */
+function fieldScore(r, t) {
+  let best = -1;
+  const up = v => { if (best < 0 || v < best) best = v; };
+  for (const k of r.keys) { if (k === t) up(0); else if (k.startsWith(t)) up(1); else if (k.includes(t)) up(2); }
+  if (r.dkey === t || r.dkey.startsWith(t)) up(3); else if (r.dkey.includes(t)) up(4);
+  if (r.pkey.includes(t)) up(5);
+  return best;
+}
+// คืน [{r, score}] เรียงดีสุดก่อน — พิมพ์ได้หลายคำ เช่น "บางมด จอมทอง"
+function searchScored(q) {
+  const tokens = String(q || '').trim().split(/\s+/).map(norm).filter(Boolean);
+  if (!tokens.length) return [];
+  const out = [];
+  for (const r of DB.recs) {
+    let ok = true, score = 0;
+    tokens.forEach((t, i) => { const s = fieldScore(r, t); if (s < 0) ok = false; else if (i === 0) score = s; });
+    if (ok) out.push({ r, score });
+  }
+  out.sort((a, b) => a.score - b.score || a.r.name.length - b.r.name.length || a.r.name.localeCompare(b.r.name, 'th') || a.r.district.localeCompare(b.r.district, 'th'));
+  return out;
+}
+
+/* ---------- Point-in-polygon (hot path เขียนเอง เร็วกว่าสร้าง Turf feature ต่อจุด) ---------- */
+function inRing(x, y, ring) {
+  let c = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function inRec(r, x, y) {
+  const b = r.bbox;
+  if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) return false;
+  for (const poly of r.polys) {
+    if (!inRing(x, y, poly[0])) continue;
+    let hole = false;
+    for (let k = 1; k < poly.length; k++) if (inRing(x, y, poly[k])) { hole = true; break; }
+    if (!hole) return true;
+  }
+  return false;
+}
+function locate(x, y, prefer) {
+  if (prefer && inRec(prefer, x, y)) return prefer;
+  for (const r of DB.recs) if (inRec(r, x, y)) return r;
+  return null;
+}
+
+/* ---------- ระยะทาง / จุดสุ่มตามเส้นทาง ---------- */
+function hav(lng1, lat1, lng2, lat2) {
+  const r = Math.PI / 180, dLat = (lat2 - lat1) * r, dLng = (lng2 - lng1) * r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLng / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(a));
+}
+// แตกเส้นทางเป็นจุดถี่ ๆ (ทุก ~40 ม.) พร้อมระยะสะสม km — ถนนตรงยาว ๆ จะได้ไม่ข้ามแขวงเล็ก
+function buildSamples(coords, step) {
+  step = step || CONFIG.SAMPLE_KM;
+  const s = [{ lng: coords[0][0], lat: coords[0][1], km: 0 }];
+  let km = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const a = coords[i - 1], b = coords[i], d = hav(a[0], a[1], b[0], b[1]);
+    if (d === 0) continue;
+    const n = Math.max(1, Math.ceil(d / step));
+    for (let k = 1; k <= n; k++) { const t = k / n; s.push({ lng: a[0] + (b[0] - a[0]) * t, lat: a[1] + (b[1] - a[1]) * t, km: km + d * t }); }
+    km += d;
+  }
+  return s;
+}
+function nearestSample(samples, x, y) {
+  let bi = 0, bd = Infinity;
+  const k = Math.cos(y * Math.PI / 180);
+  for (let i = 0; i < samples.length; i++) {
+    const dx = (samples[i].lng - x) * k, dy = samples[i].lat - y, d = dx * dx + dy * dy;
+    if (d < bd) { bd = d; bi = i; }
+  }
+  return { i: bi, km: Math.sqrt(bd) * 111.32 };
+}
+
+/* ---------- Spatial Intersection: เส้นทาง → แขวงที่ผ่านจริง ตามลำดับ ---------- */
+function extractMain(samples, originRec, destRec) {
+  const runs = new Map();
+  let lastId = -1, lastRec = null, prevKm = 0;
+  for (const s of samples) {
+    const r = locate(s.lng, s.lat, lastRec);
+    if (r) {
+      let run = runs.get(r.id);
+      if (!run) { run = { rec: r, startKm: s.km, endKm: s.km, lenKm: 0 }; runs.set(r.id, run); }
+      if (lastId === r.id) run.lenKm += s.km - prevKm;   // นับเฉพาะช่วงที่ต่อเนื่องอยู่ในแขวงเดียวกัน
+      run.endKm = s.km;
+      lastId = r.id; lastRec = r;
+    } else lastId = -1;                                   // ช่องว่างระหว่างขอบเขต / นอกพื้นที่ข้อมูล
+    prevKm = s.km;
+  }
+  const total = samples[samples.length - 1].km;
+  let arr = [...runs.values()].sort((a, b) => a.startKm - b.startKm);   // ลำดับ = ครั้งแรกที่เข้าแขวง
+  arr = arr.filter(x => x.lenKm >= CONFIG.MIN_MAIN_KM || x.rec === originRec || x.rec === destRec);
+  if (originRec && !arr.some(x => x.rec === originRec)) arr.unshift({ rec: originRec, startKm: 0, endKm: 0, lenKm: 0 });
+  if (destRec && !arr.some(x => x.rec === destRec)) arr.push({ rec: destRec, startKm: total, endKm: total, lenKm: 0 });
+  arr.forEach((x, i) => { x.order = i + 1; });
+  return arr;
+}
+
+/* ---------- Buffer Zone: แขวงข้างเคียงในรัศมีเผื่อ ---------- */
+function computeNear(coords, samples, mainIds, radiusKm) {
+  const line = turf.lineString(coords);
+  const simple = turf.simplify(line, { tolerance: 0.0003, highQuality: false });   // ลดจุดก่อน buffer (~30 ม.)
+  const buf = turf.buffer(simple, radiusKm, { units: 'kilometers', steps: 4 });
+  const bb = turf.bbox(buf);
+  const out = [];
+  for (const r of DB.recs) {
+    if (mainIds.has(r.id)) continue;
+    const b = r.bbox;
+    if (b[2] < bb[0] || b[0] > bb[2] || b[3] < bb[1] || b[1] > bb[3]) continue;   // bbox กรองก่อน เร็วขึ้นมาก
+    if (turf.booleanIntersects(buf, { type: 'Feature', properties: {}, geometry: r.geom })) {
+      const rp = repOf(r), n = nearestSample(samples, rp[0], rp[1]);
+      out.push({ rec: r, alongKm: samples[n.i].km });
+    }
+  }
+  out.sort((a, b) => a.alongKm - b.alongKm);
+  return { near: out, buffer: buf };
+}
+
+/* ==CORE-END== ============================================================== */
+
+/* =====================================================================
+   3. Routing Logic — OSRM (หลบทางด่วน)
+   ===================================================================== */
+async function fetchJson(url, ms) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctl.signal });
+    return await res.json();       // OSRM ตอบ JSON แม้ error (code: InvalidValue / NoRoute ...)
+  } finally { clearTimeout(t); }
+}
+
+// ลองตามลำดับ: (ทุกเซิร์ฟเวอร์ + exclude=motorway) แล้วค่อย (ทุกเซิร์ฟเวอร์ ไม่ exclude) เผื่อบางเซิร์ฟเวอร์ไม่รองรับ exclude
+async function fetchRoute(o, d, onTry) {
+  const xy = `${o.lng},${o.lat};${d.lng},${d.lat}`;
+  let lastErr = new Error('ไม่พบเส้นทาง');
+  for (const avoid of [true, false]) {
+    for (const base of CONFIG.OSRM_SERVERS) {
+      const url = `${base}/route/v1/driving/${xy}?overview=full&geometries=geojson&steps=true&alternatives=false` +
+                  (avoid ? '&exclude=motorway' : '');
+      if (onTry) onTry(avoid, base);
+      try {
+        const j = await fetchJson(url, CONFIG.OSRM_TIMEOUT_MS);
+        if (j && j.code === 'Ok' && j.routes && j.routes.length) return { route: j.routes[0], avoided: avoid };
+        lastErr = new Error(j && (j.message || j.code) || 'ไม่พบเส้นทาง');
+      } catch (e) { lastErr = e; }
+    }
+  }
+  throw lastErr;
+}
+function routeUsesMotorway(route) {
+  for (const leg of route.legs || []) for (const st of leg.steps || []) for (const it of st.intersections || [])
+    if (it.classes && it.classes.includes('motorway')) return true;
+  return false;
+}
+
+/* =====================================================================
+   APP (DOM, แผนที่, GPS)
+   ===================================================================== */
+(function () {
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+/* ---------- state ---------- */
+const S = {
+  route: null,        // { coords, samples, totalKm, avoided, motorway }
+  origin: null, dest: null,
+  main: [], mainOrder: new Map(),
+  near: [], radius: CONFIG.BUFFER_KM,
+  hereOrder: 0, pendingOrd: 0, hereRec: null, progressKm: 0, tracking: false, simulating: false, follow: false
+};
+let map, gPoly, gLbl, gRoute, meMk, meAcc, pinO, pinD;
+const polyLayer = new Map(), lblLayer = new Map();
+
+/* ---------- loader: ลอง CDN สำรองอัตโนมัติ ---------- */
+function loadScript(urls) {
+  return urls.reduce((p, u) => p.catch(() => new Promise((ok, no) => {
+    const s = document.createElement('script'); s.src = u; s.onload = ok; s.onerror = () => no(new Error(u)); document.head.appendChild(s);
+  })), Promise.reject());
+}
+Promise.all([
+  loadScript(['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js']),
+  loadScript(['https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js', 'https://unpkg.com/@turf/turf@6.5.0/turf.min.js'])
+]).then(boot).catch(e => {
+  document.body.insertAdjacentHTML('afterbegin', '<div class="fatal">โหลดไลบรารีแผนที่ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วรีเฟรชหน้านี้</div>');
+  console.error(e);
+});
+
+/* รายชื่อทั้งหมด กทม.ก่อน แล้วเรียงตามตัวอักษร ใช้ตอนแตะช่องว่าง/ช่องที่เลือกไว้แล้วเพื่อเลือกใหม่เร็ว ๆ */
+let BROWSE_ALL = null;
+function browseAll() {
+  if (!BROWSE_ALL) BROWSE_ALL = DB.recs.slice().sort((a, b) => (a.isBkk === b.isBkk ? 0 : a.isBkk ? -1 : 1) || a.name.localeCompare(b.name, 'th'));
+  return BROWSE_ALL;
+}
+
+/* ---------- pickers (ช่องค้นหา + dropdown เลือกเขต + ปุ่มล้าง) ---------- */
+function makePicker(input, list, clearBtn, onChange) {
+  let sel = null, items = [], act = -1;
+  const hide = () => { list.hidden = true; act = -1; };
+  const syncClr = () => { if (clearBtn) clearBtn.hidden = !input.value; };
+  function show() {
+    const q = sel ? '' : input.value.trim();                 // แตะช่องที่เลือกไว้แล้ว = เลือกใหม่จากรายการทั้งหมด
+    items = q ? searchScored(q).slice(0, 8).map(x => x.r) : browseAll();
+    if (!items.length) { hide(); return; }
+    list.innerHTML = items.map((r, i) => `<li role="option" data-i="${i}"><b>${r.unit}${esc(r.name)}</b><span>${esc(r.sub)}</span></li>`).join('');
+    list.hidden = false; act = -1;
+    fitList();
+  }
+  // จำกัดความสูงรายการให้อยู่เหนือคีย์บอร์ด (visualViewport) เพื่อให้เลื่อนดูได้ครบ
+  function fitList() {
+    const vv = window.visualViewport, h = vv ? vv.height : window.innerHeight, off = vv ? vv.offsetTop : 0;
+    const room = off + h - list.getBoundingClientRect().top - 12;
+    list.style.maxHeight = Math.max(160, Math.min(room, h * 0.7)) + 'px';
+  }
+  const api = {
+    get value() { return sel; },
+    setRec(rec) { const rp = repOf(rec); api.setPlace({ rec, lng: rp[0], lat: rp[1], label: rec.label }); },
+    setPlace(pl) { sel = pl; input.value = pl.label; hide(); syncClr(); if (onChange) onChange(sel); input.blur(); },
+    clear() { sel = null; input.value = ''; hide(); syncClr(); if (onChange) onChange(null); },
+    // ถ้าพิมพ์ชื่อที่ไม่ซ้ำ ให้เติมเขตให้เอง / ถ้าซ้ำ ให้เปิด dropdown ให้เลือก
+    resolve() {
+      if (sel) return sel;
+      const q = input.value.trim(); if (!q) return null;
+      const all = searchScored(q), exact = all.filter(x => x.score === 0);
+      if (exact.length === 1) { api.setRec(exact[0].r); return sel; }
+      if (exact.length > 1 || all.length > 1) { show(); return 'ambiguous'; }
+      if (all.length === 1) { api.setRec(all[0].r); return sel; }
+      return null;
+    }
+  };
+  input.addEventListener('input', () => { if (sel) { sel = null; if (onChange) onChange(null); } syncClr(); show(); });
+  let bt = null;
+  input.addEventListener('focus', () => { clearTimeout(bt); show(); });
+  let touching = false, tt = null;
+  const touchOn = () => { touching = true; clearTimeout(tt); };
+  const touchOff = () => { clearTimeout(tt); tt = setTimeout(() => { touching = false; }, 400); };
+  list.addEventListener('touchstart', touchOn, { passive: true });
+  list.addEventListener('touchend', touchOff, { passive: true });
+  list.addEventListener('touchcancel', touchOff, { passive: true });
+  input.addEventListener('blur', () => {
+    clearTimeout(bt);
+    bt = setTimeout(() => {
+      if (touching) return;                 // กำลังเลื่อน/แตะรายการอยู่ อย่าเพิ่งปิด
+      hide(); if (!sel && input.value.trim()) api.resolve(); hide();
+    }, 150);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (list.hidden) show();
+      if (!items.length) return;
+      e.preventDefault();
+      act = (act + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      [...list.children].forEach((li, i) => li.classList.toggle('act', i === act));
+    } else if (e.key === 'Enter') {
+      if (!list.hidden && act >= 0) { e.preventDefault(); api.setRec(items[act]); }
+    } else if (e.key === 'Escape') hide();
+  });
+  // เลือกตอน "แตะเสร็จ" (click) ไม่ใช่ตอนนิ้วแตะลง — ไม่งั้นเริ่มเลื่อนรายการก็ไปเลือกแขวงเลย
+  list.addEventListener('mousedown', e => e.preventDefault());       // กัน input blur ก่อน click
+  list.addEventListener('click', e => {
+    const li = e.target.closest('li'); if (!li) return;
+    api.setRec(items[+li.dataset.i]);
+  });
+  api.hide = hide; api.box = input.parentElement;
+  if (clearBtn) {
+    clearBtn.addEventListener('pointerdown', e => e.preventDefault());   // กัน input blur ก่อนกดล้าง
+    clearBtn.addEventListener('click', () => { api.clear(); input.focus(); show(); });
+  }
+  syncClr();
+  return api;
+}
+
+let pO, pD, pC;
+
+/* ---------- boot ---------- */
+async function boot() {
+  initMap();
+  let fc = EMBEDDED;
+  if (CONFIG.GEOJSON_URL) {
+    try { const r = await fetch(CONFIG.GEOJSON_URL); const j = await r.json(); if (j && j.features && j.features.length) fc = j; }
+    catch (e) { console.warn('โหลด GeoJSON ภายนอกไม่ได้ ใช้ข้อมูลในไฟล์แทน', e); }
+  }
+  DB.recs = buildRecs(fc);
+  buildDirectory();
+  wireDirectory();
+
+  pO = makePicker($('in-o'), $('sg-o'), $('clr-o'));
+  pD = makePicker($('in-d'), $('sg-d'), $('clr-d'));
+  pC = makePicker($('in-c'), $('sg-c'), $('clr-c'), () => updateVerdict());
+  document.addEventListener('pointerdown', e => {          // แตะนอกช่อง = ปิดรายการ
+    [pO, pD, pC].forEach(p => { if (!p.box.contains(e.target)) p.hide(); });
+  });
+
+  $('btn-go').addEventListener('click', calculate);
+  $('btn-reset').addEventListener('click', resetAll);
+  [$('in-o'), $('in-d')].forEach(i => i.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && $(i === $('in-o') ? 'sg-o' : 'sg-d').hidden) calculate();
+  }));
+  $('btn-swap').addEventListener('click', () => {
+    const a = pO.value, b = pD.value, ta = $('in-o').value, tb = $('in-d').value;
+    if (b) pO.setPlace(b); else { pO.clear(); $('in-o').value = tb; }
+    if (a) pD.setPlace(a); else { pD.clear(); $('in-d').value = ta; }
+  });
+  $('btn-loc').addEventListener('click', useMyLocation);
+  $('btn-gps').addEventListener('click', () => (S.tracking ? stopGPS() : startGPS()));
+  $('btn-sim').addEventListener('click', () => (S.simulating ? stopSim() : startSim()));
+  $('btn-fit').addEventListener('click', fitAll);
+  $('btn-follow').addEventListener('click', () => setFollow(!S.follow));
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setRadius(+b.dataset.r)));
+  $('list-main').addEventListener('click', cardClick);
+  $('list-near').addEventListener('click', cardClick);
+  window.addEventListener('resize', () => map.invalidateSize());
+
+  try {   // จำจุดรับ/จุดส่งล่าสุด
+    const last = JSON.parse(localStorage.getItem('rider.last') || 'null');
+    if (last) {
+      const ro = DB.recs.find(r => r.code === last.o), rd = DB.recs.find(r => r.code === last.d);
+      if (ro) pO.setRec(ro); if (rd) pD.setRec(rd);
+    }
+  } catch (e) { /* ไม่เป็นไร */ }
+}
+
+/* ---------- map ---------- */
+function initMap() {
+  map = L.map('map', { zoomControl: false }).setView([13.7563, 100.5018], 11);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.tileLayer(CONFIG.TILE_URL, { subdomains: 'abcd', maxZoom: 19, attribution: '© OpenStreetMap · © CARTO' }).addTo(map);
+  map.createPane('polyPane').style.zIndex = 350;       // ขอบเขตแขวงอยู่ใต้เส้นทาง
+  map.createPane('routePane').style.zIndex = 450;
+  gPoly = L.layerGroup().addTo(map); gRoute = L.layerGroup().addTo(map); gLbl = L.layerGroup().addTo(map);
+  const zc = () => { const z = map.getZoom(), c = $('map').classList; c.toggle('zlow', z < 12); c.toggle('zmid', z < 13); };
+  map.on('zoomend', zc); zc();
+  map.on('dragstart', () => { if (S.follow) setFollow(false); });   // ลากแผนที่เอง = เลิกตาม
+}
+function pinIcon(kind, text) {
+  return L.divIcon({ className: 'pin ' + kind, html: `<div class="pb">${text}</div>`, iconSize: [0, 0] });
+}
+function latlngsOf(rec) {
+  return L.GeoJSON.coordsToLatLngs(rec.geom.coordinates, rec.geom.type === 'Polygon' ? 1 : 2);
+}
+function polyStyle(kind) {
+  if (kind === 'passed') return { color: '#7f8681', weight: 1.5, dashArray: null, fillColor: '#9aa09b', fillOpacity: .3 };
+  if (kind === 'here')   return { color: '#1746a2', weight: 4, dashArray: null, fillColor: '#12a154', fillOpacity: .32 };
+  if (kind === 'near')   return { color: '#b58900', weight: 1.5, dashArray: '5 4', fillColor: '#f2c12e', fillOpacity: .22 };
+  return { color: '#0b6b3a', weight: 2.5, dashArray: null, fillColor: '#0b6b3a', fillOpacity: .2 };
+}
+function lblIcon(cls, html) { return L.divIcon({ className: 'lbl ' + cls, html: `<div class="lb">${html}</div>`, iconSize: [0, 0] }); }
+
+function drawRoute() {
+  gRoute.clearLayers();
+  const ll = S.route.coords.map(c => [c[1], c[0]]);
+  L.polyline(ll, { color: '#fff', weight: 9, opacity: .95, pane: 'routePane', smoothFactor: 1.5 }).addTo(gRoute);
+  L.polyline(ll, { color: '#1746a2', weight: 5, pane: 'routePane', smoothFactor: 1.5 }).addTo(gRoute);
+  L.marker([S.origin.lat, S.origin.lng], { icon: pinIcon('o', 'รับ'), interactive: false, zIndexOffset: 500 }).addTo(gRoute);
+  const e = S.route.coords[S.route.coords.length - 1];
+  L.marker([e[1], e[0]], { icon: pinIcon('d', 'ส่ง'), interactive: false, zIndexOffset: 500 }).addTo(gRoute);
+}
+function drawAreas() {
+  gPoly.clearLayers(); gLbl.clearLayers(); polyLayer.clear(); lblLayer.clear();
+  const add = (rec, cls, labelHtml) => {
+    const pg = L.polygon(latlngsOf(rec), Object.assign({ pane: 'polyPane', interactive: true }, polyStyle(cls))).addTo(gPoly);
+    pg.on('click', () => focusCard(rec.id));
+    polyLayer.set(rec.id, pg);
+    const rp = repOf(rec);
+    const mk = L.marker([rp[1], rp[0]], { icon: lblIcon(cls, labelHtml), interactive: false, keyboard: false }).addTo(gLbl);
+    lblLayer.set(rec.id, mk);
+  };
+  S.near.forEach(n => add(n.rec, 'near', esc(n.rec.name)));
+  S.main.forEach(m => add(m.rec, 'main', `<span class="n">${m.order}</span><span class="t">${esc(m.rec.name)}</span>`));
+}
+function fitAll() {
+  if (!S.route) return;
+  map.fitBounds(L.latLngBounds(S.route.coords.map(c => [c[1], c[0]])), { padding: [30, 30] });
+}
+
+/* ---------- ปุ่ม/สถานะ ---------- */
+function setStatus(t, err) { const s = $('status'); s.textContent = t || ''; s.classList.toggle('err', !!err); }
+
+// อธิบายสาเหตุ GPS ใช้ไม่ได้ให้ตรงจุด (Brave/Chrome บนมือถือ)
+async function explainGeoError(e) {
+  if (location.protocol === 'file:' || !window.isSecureContext)
+    return 'GPS ใช้ไม่ได้ตอนเปิดไฟล์จากในเครื่อง ต้องเปิดผ่านลิงก์ https (เช่น อัปขึ้น GitHub Pages)';
+  if (e && e.code === 1) {
+    let st = '';
+    try { st = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch (x) { /* ไม่รองรับ */ }
+    if (st === 'denied') return 'เว็บนี้ถูกบล็อกตำแหน่ง: แตะไอคอนหน้าช่องที่อยู่เว็บ › สิทธิ์ของเว็บไซต์ › ตำแหน่ง › อนุญาต แล้วรีเฟรช';
+    return 'เบราว์เซอร์ยังไม่ได้สิทธิ์ตำแหน่งจากมือถือ: ตั้งค่ามือถือ › แอป › Brave › สิทธิ์ › ตำแหน่ง › อนุญาต และเปิดตำแหน่งของเครื่อง';
+  }
+  if (e && e.code === 3) return 'GPS ตอบช้า ลองออกที่โล่งแล้วกดใหม่';
+  return 'หาตำแหน่งไม่ได้ ตรวจว่าเปิดตำแหน่งของเครื่องแล้ว (Brave บนคอมต้องเปิด "ใช้บริการตำแหน่งของ Google" ในตั้งค่า)';
+}
+const getPos = opts => new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, opts));
+
+async function useMyLocation() {
+  if (!navigator.geolocation) { setStatus('เครื่องนี้ไม่รองรับ GPS', true); return; }
+  if (location.protocol === 'file:' || !window.isSecureContext) { setStatus(await explainGeoError(), true); return; }
+  setStatus('กำลังหาตำแหน่งปัจจุบัน…');
+  let p;
+  try { p = await getPos({ enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 }); }
+  catch (e1) {
+    // ลองอีกรอบแบบไม่บังคับความแม่นสูง (บางเครื่องให้สิทธิ์ตำแหน่งแบบคร่าว ๆ อย่างเดียว)
+    try { p = await getPos({ enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 }); }
+    catch (e2) { setStatus(await explainGeoError(e2), true); return; }
+  }
+  const lng = p.coords.longitude, lat = p.coords.latitude, rec = locate(lng, lat);
+  pO.setPlace({ rec, lng, lat, label: rec ? `ตำแหน่งฉัน — ${rec.label}` : 'ตำแหน่งฉัน' });
+  setStatus(rec ? '' : 'ตำแหน่งนี้อยู่นอกพื้นที่ กทม.และปริมณฑล');
+}
+
+/* ---------- คำนวณเส้นทาง ---------- */
+async function calculate() {
+  setStatus('');
+  const o = pO.resolve(), d = pD.resolve();
+  if (!o || o === 'ambiguous') { setStatus(o ? 'ชื่อจุดรับมีหลายเขต เลือกจากรายการก่อน' : 'ไม่พบชื่อแขวงจุดรับ ลองพิมพ์ใหม่', true); $('in-o').focus(); return; }
+  if (!d || d === 'ambiguous') { setStatus(d ? 'ชื่อจุดส่งมีหลายเขต เลือกจากรายการก่อน' : 'ไม่พบชื่อแขวงจุดส่ง ลองพิมพ์ใหม่', true); $('in-d').focus(); return; }
+  if (Math.abs(o.lng - d.lng) < 1e-5 && Math.abs(o.lat - d.lat) < 1e-5) { setStatus('จุดรับกับจุดส่งเป็นที่เดียวกัน', true); return; }
+
+  const btn = $('btn-go'); btn.disabled = true;
+  setStatus('กำลังหาเส้นทางบนถนนจริง…');
+  try {
+    const { route, avoided } = await fetchRoute(o, d, (avoid, base) => {
+      if (base !== CONFIG.OSRM_SERVERS[0] || !avoid) setStatus(avoid ? 'กำลังลองเซิร์ฟเวอร์สำรอง…' : 'กำลังหาเส้นทางแบบไม่กรองทางด่วน…');
+    });
+    S.origin = o; S.dest = d;
+    const coords = route.geometry.coordinates;
+    S.route = { coords, samples: buildSamples(coords), avoided, motorway: routeUsesMotorway(route) };
+    S.route.totalKm = S.route.samples[S.route.samples.length - 1].km;
+
+    S.main = extractMain(S.route.samples, o.rec, d.rec);
+    S.mainOrder = new Map(S.main.map(m => [m.rec.id, m.order]));
+    S.radius = S.radius || CONFIG.BUFFER_KM;
+    computeNearNow();
+    resetTracking();
+
+    drawRoute(); drawAreas(); renderLists(); applyStates();
+    renderSummary();
+    $('empty').hidden = true; $('out').hidden = false;
+    map.invalidateSize(); fitAll();
+    setStatus('');
+    try { localStorage.setItem('rider.last', JSON.stringify({ o: o.rec && o.rec.code, d: d.rec && d.rec.code })); } catch (e) { /* ignore */ }
+    if (pC.value) updateVerdict();
+    if (window.matchMedia('(max-width:899px)').matches) window.scrollTo({ top: 0 });
+  } catch (e) {
+    console.error(e);
+    setStatus('หาเส้นทางไม่ได้: ' + (e && e.name === 'AbortError' ? 'เซิร์ฟเวอร์ตอบช้า ลองใหม่อีกครั้ง' : (e.message || 'ไม่ทราบสาเหตุ')) , true);
+  } finally { btn.disabled = false; }
+}
+
+// "เริ่มงานใหม่" — ล้างทั้งช่องค้นหาและผลลัพธ์พร้อมกัน (ลบข้อความในช่องเฉยๆ ไม่ล้างผลลัพธ์ให้)
+function resetAll() {
+  stopGPS(true); stopSim(true);
+  pO.clear(); pD.clear(); pC.clear();
+  S.route = null; S.origin = null; S.dest = null; S.main = []; S.near = []; S.mainOrder = new Map();
+  resetTracking();
+  gRoute.clearLayers(); gPoly.clearLayers(); gLbl.clearLayers(); polyLayer.clear(); lblLayer.clear();
+  if (meMk) { map.removeLayer(meMk); map.removeLayer(meAcc); meMk = null; meAcc = null; }
+  if (dbPreview) { map.removeLayer(dbPreview.poly); map.removeLayer(dbPreview.lbl); dbPreview = null; }
+  $('out').hidden = true; $('empty').hidden = false;
+  $('verdict').hidden = true;
+  setStatus('');
+  try { localStorage.removeItem('rider.last'); } catch (e) { /* ignore */ }
+  $('in-o').focus();
+}
+
+function computeNearNow() {
+  try {
+    const r = computeNear(S.route.coords, S.route.samples, new Set(S.main.map(m => m.rec.id)), S.radius);
+    S.near = r.near;
+  } catch (e) { console.error('คำนวณแขวงใกล้เคียงไม่สำเร็จ', e); S.near = []; }
+}
+function setRadius(r) {
+  S.radius = r;
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.r === r)));
+  if (!S.route) return;
+  computeNearNow(); drawAreas(); renderLists(); applyStates(); updateVerdict();
+}
+
+function renderSummary() {
+  const n = S.main.length;
+  $('sum').innerHTML = `<b>${S.route.totalKm.toFixed(1)}</b> กม. ผ่าน <b>${n}</b> แขวง`;
+  const w = $('warn');
+  if (S.route.avoided) w.hidden = true;
+  else {
+    w.hidden = false;
+    w.textContent = S.route.motorway
+      ? 'เส้นทางนี้ผ่านทางด่วน (เซิร์ฟเวอร์เส้นทางไม่รองรับการหลบ) มอเตอร์ไซค์ขึ้นไม่ได้ ตรวจเส้นบนแผนที่ก่อนวิ่ง'
+      : 'เซิร์ฟเวอร์เส้นทางไม่รองรับการสั่งหลบทางด่วน ตรวจเส้นบนแผนที่ว่าไม่ขึ้นทางด่วนก่อนวิ่ง';
+  }
+}
+
+/* ---------- การ์ดป้ายแขวง ---------- */
+function renderLists() {
+  const om = $('list-main'), on = $('list-near');
+  om.innerHTML = S.main.map(m => {
+    const role = m.order === 1 ? 'จุดรับ' : m.order === S.main.length ? 'จุดส่ง' : '';
+    return `<li class="sign main" data-id="${m.rec.id}" data-kind="main" tabindex="0">
+      <span class="no">${m.order}</span>
+      <div><span class="nm">${m.rec.unit}${esc(m.rec.name)}</span><span class="ds">${esc(m.rec.sub)}</span></div>
+      <div class="km"><div class="tags"><span class="tag role">${role}</span><span class="tag st"></span></div>
+        ${m.order === 1 ? '' : `${m.startKm.toFixed(1)} กม.<small>จากจุดรับ</small>`}</div></li>`;
+  }).join('');
+  on.innerHTML = S.near.length ? S.near.map(n =>
+    `<li class="sign near" data-id="${n.rec.id}" data-kind="near" tabindex="0">
+      <div><span class="nm">${n.rec.unit}${esc(n.rec.name)}</span><span class="ds">${esc(n.rec.sub)}</span></div>
+      <div class="km"><div class="tags"><span class="tag st"></span></div>ช่วง ${n.alongKm.toFixed(0)} กม.<small>ของเส้นทาง</small></div></li>`).join('')
+    : '<li class="hint">ไม่มีแขวงอื่นในรัศมีนี้</li>';
+}
+function cardClick(e) { const li = e.target.closest('.sign'); if (li) focusMap(+li.dataset.id); }
+function focusMap(id) {
+  const pg = polyLayer.get(id); if (!pg) return;
+  map.fitBounds(pg.getBounds(), { padding: [30, 30], maxZoom: 14 });
+  if (window.matchMedia('(max-width:899px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function focusCard(id) {
+  const li = document.querySelector(`.sign[data-id="${id}"]`);
+  if (li) li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+/* ---------- 4. GPS Tracking & Dimming Logic ---------- */
+function stateMain(m) { return S.hereOrder && m.order < S.hereOrder ? 'passed' : m.order === S.hereOrder ? 'here' : 'ahead'; }
+function stateNear(n) {
+  if (S.hereRec && S.hereRec.id === n.rec.id && !S.mainOrder.has(n.rec.id)) return 'here';
+  return S.hereOrder && n.alongKm < S.progressKm - 0.5 ? 'passed' : 'ahead';
+}
+const TAGTXT = { passed: 'ผ่านแล้ว', here: 'อยู่ที่นี่', ahead: '' };
+
+// อัปเดตสีการ์ด + สีขอบเขตบนแผนที่ ตามสถานะ (ไม่สร้างการ์ดใหม่ เพื่อไม่ให้หน้าเด้ง)
+function applyStates() {
+  const each = (rec, st, kind) => {
+    const li = document.querySelector(`.sign[data-id="${rec.id}"]`);
+    if (li) { li.classList.toggle('passed', st === 'passed'); li.classList.toggle('here', st === 'here'); li.querySelector('.tag.st').textContent = TAGTXT[st]; }
+    const pg = polyLayer.get(rec.id);
+    if (pg) { pg.setStyle(polyStyle(st === 'ahead' ? kind : st)); if (st === 'here') pg.bringToFront(); }
+    const mk = lblLayer.get(rec.id), el = mk && mk.getElement();
+    if (el) el.classList.toggle('passed', st === 'passed');
+  };
+  S.main.forEach(m => each(m.rec, stateMain(m), 'main'));
+  S.near.forEach(n => each(n.rec, stateNear(n), 'near'));
+  updateVerdict();
+}
+
+function resetTracking() { S.hereOrder = 0; S.pendingOrd = 0; S.hereRec = null; S.progressKm = 0; }
+
+function showMe(lat, lng, acc) {
+  if (!meMk) {
+    meMk = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [0, 0] }), zIndexOffset: 1000, interactive: false }).addTo(map);
+    meAcc = L.circle([lat, lng], { radius: acc || 20, color: '#1a73e8', weight: 1, fillOpacity: .08, interactive: false }).addTo(map);
+  } else { meMk.setLatLng([lat, lng]); meAcc.setLatLng([lat, lng]).setRadius(acc || 20); }
+}
+
+// ทุกครั้งที่ได้ตำแหน่งใหม่ (จาก GPS จริง หรือจำลอง)
+function onFix(lat, lng, acc) {
+  showMe(lat, lng, acc);
+  if (S.follow) map.setView([lat, lng], Math.max(map.getZoom(), 15), { animate: true });
+  if (!S.route) { setGpsText('<b>ได้ตำแหน่งแล้ว</b> คำนวณเส้นทางเพื่อเริ่มไล่แขวง'); return; }
+
+  const rec = locate(lng, lat, S.hereRec || (S.main[0] && S.main[0].rec));
+  S.hereRec = rec;
+  const snap = nearestSample(S.route.samples, lng, lat);
+  const onRoute = snap.km <= CONFIG.SNAP_MAX_KM;
+
+  if (acc <= CONFIG.ACC_MAX_M) {
+    const ord = rec ? (S.mainOrder.get(rec.id) || 0) : 0;
+    if (ord > S.hereOrder) {
+      // ต้องเจอแขวงใหม่ 2 ครั้งติด (กัน GPS สั่นตรงเส้นแบ่ง) ยกเว้นครั้งแรกสุด
+      if (S.hereOrder === 0 || S.pendingOrd === ord) advance(ord);
+      else S.pendingOrd = ord;
+    } else S.pendingOrd = 0;
+    if (onRoute) S.progressKm = Math.max(S.progressKm, S.route.samples[snap.i].km);
+  }
+  applyStates();
+
+  const where = rec ? `${rec.unit}${esc(rec.name)}` : 'นอกพื้นที่ข้อมูล';
+  const remain = Math.max(0, S.route.totalKm - S.progressKm);
+  setGpsText(`<b>${where}</b>${onRoute ? ` เหลืออีก ${remain.toFixed(1)} กม.` : ' — ออกนอกเส้นทางหลัก'}${S.simulating ? ' (จำลอง)' : ''}`);
+}
+function advance(ord) {
+  S.hereOrder = ord; S.pendingOrd = 0;
+  const m = S.main.find(x => x.order === ord);
+  if (m) setTimeout(() => focusCard(m.rec.id), 60);
+}
+function setGpsText(html) { $('gps-t').innerHTML = html; }
+
+let watchId = null, wakeLock = null;
+async function startGPS() {
+  if (!navigator.geolocation) { setGpsText('เครื่องนี้ไม่รองรับ GPS'); return; }
+  if (location.protocol === 'file:' || !window.isSecureContext) { setGpsText(esc(await explainGeoError())); return; }
+  stopSim();
+  S.tracking = true; setFollow(true);
+  $('btn-gps').textContent = 'หยุดติดตาม GPS'; $('btn-gps').classList.add('on');
+  setGpsText('กำลังหาสัญญาณ GPS…');
+  watchId = navigator.geolocation.watchPosition(
+    p => onFix(p.coords.latitude, p.coords.longitude, p.coords.accuracy),
+    e => { if (e.code === 1) stopGPS(true); explainGeoError(e).then(m => setGpsText(esc(m))); },
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
+  if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {});   // กันจอดับ
+}
+function stopGPS(keepText) {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null; S.tracking = false; setFollow(false);
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+  $('btn-gps').textContent = 'เริ่มติดตาม GPS'; $('btn-gps').classList.remove('on');
+  if (!keepText) setGpsText('เปิด GPS เพื่อให้แขวงที่ผ่านไปแล้วเป็นสีเทาอัตโนมัติ');
+}
+function setFollow(v) { S.follow = v; $('btn-follow').setAttribute('aria-pressed', String(v)); }
+
+/* จำลองการขับตามเส้นทาง เอาไว้ลองดูแขวงเปลี่ยนเป็นสีเทาโดยไม่ต้องออกถนน */
+let simTimer = null;
+function startSim() {
+  if (!S.route) { setStatus('คำนวณเส้นทางก่อน แล้วค่อยลองจำลอง', true); return; }
+  stopGPS(true); resetTracking(); applyStates();
+  S.simulating = true; setFollow(true);
+  $('btn-sim').textContent = 'หยุดจำลอง';
+  const sm = S.route.samples, step = Math.max(1, Math.round(sm.length / 70));
+  let i = 0;
+  simTimer = setInterval(() => {
+    const s = sm[Math.min(i, sm.length - 1)];
+    onFix(s.lat, s.lng, 8);
+    i += step;
+    if (i >= sm.length + step) stopSim(true);
+  }, 600);
+}
+function stopSim(keepState) {
+  if (simTimer) clearInterval(simTimer);
+  simTimer = null;
+  if (!S.simulating) return;
+  S.simulating = false; setFollow(false);
+  $('btn-sim').textContent = 'ลองจำลองการขับ';
+  if (!keepState) { resetTracking(); applyStates(); setGpsText('เปิด GPS เพื่อให้แขวงที่ผ่านไปแล้วเป็นสีเทาอัตโนมัติ'); }
+}
+
+/* ---------- เช็คงานซ้อน ---------- */
+function updateVerdict() {
+  const v = $('verdict'), pl = pC && pC.value;
+  if (!S.route || !pl || !pl.rec) { v.hidden = true; return; }
+  const rec = pl.rec, m = S.main.find(x => x.rec.id === rec.id), n = S.near.find(x => x.rec.id === rec.id);
+  let cls, t, s = '';
+  if (m) {
+    const st = stateMain(m);
+    if (st === 'passed') { cls = 'no'; t = 'ผ่านมาแล้ว ย้อนทาง ไม่ควรรับ'; s = `แขวงนี้อยู่ลำดับที่ ${m.order} ตอนนี้คุณอยู่ลำดับที่ ${S.hereOrder}`; }
+    else if (st === 'here') { cls = 'ok'; t = 'อยู่แขวงนี้ตอนนี้ รับได้'; }
+    else {
+      cls = 'ok'; t = 'อยู่บนเส้นทางข้างหน้า รับได้';
+      s = `ลำดับที่ ${m.order} จาก ${S.main.length}`;
+      if (S.hereOrder) s += ` อีกประมาณ ${Math.max(0, m.startKm - S.progressKm).toFixed(1)} กม.`;
+      else s += ' เปิด GPS เพื่อเช็คว่าผ่านมาแล้วหรือยัง';
+    }
+  } else if (n) {
+    if (stateNear(n) === 'passed') { cls = 'no'; t = 'อยู่ข้างหลังแล้ว ไม่ควรรับ'; s = 'ใกล้เส้นทางแต่คุณผ่านช่วงนั้นไปแล้ว'; }
+    else { cls = 'warn'; t = 'ใกล้เส้นทาง ต้องเบี่ยง ดูระยะก่อนรับ'; s = `อยู่ในรัศมี ${S.radius} กม. ช่วงกม.ที่ ${n.alongKm.toFixed(0)} ของเส้นทาง`; }
+  } else { cls = 'no'; t = 'ไม่อยู่ในแนวเส้นทาง'; s = `เกินรัศมี ${S.radius} กม. จากเส้นทางหลัก`; }
+  v.className = 'verdict ' + cls; v.hidden = false;
+  v.innerHTML = `<b>${esc(t)}</b>${s ? `<span>${esc(s)}</span>` : ''}`;
+}
+
+/* ---- hook สำหรับทดสอบ ---- */
+/* ---------- ฐานข้อมูล: จัดกลุ่มเขต→แขวง เรียงตามเขตที่อยู่ใกล้กัน ---------- */
+const DIR = { groups: [], byId: new Map(), provOrder: [] };
+
+function buildDirectory() {
+  const g = new Map();
+  for (const r of DB.recs) {
+    const key = r.prov + '|' + r.district;
+    let grp = g.get(key);
+    if (!grp) { grp = { key, district: r.district, prov: r.prov, provCode: r.provCode, isBkk: r.isBkk, distWord: r.distWord, members: [], cx: 0, cy: 0 }; g.set(key, grp); }
+    const p = repOf(r);
+    grp.members.push(r); grp.cx += p[0]; grp.cy += p[1];
+  }
+  const groups = [...g.values()];
+  groups.forEach(gr => { gr.cx /= gr.members.length; gr.cy /= gr.members.length; gr.members.sort((a, b) => a.name.localeCompare(b.name, 'th')); });
+
+  const chain = (list, seed) => {                      // ไล่เขตที่ใกล้กันต่อกันแบบ nearest-neighbor
+    if (!list.length) return [];
+    let start = list[0], bd = Infinity;
+    for (const cand of list) { const d = hav(seed[0], seed[1], cand.cx, cand.cy); if (d < bd) { bd = d; start = cand; } }
+    const left = new Set(list); left.delete(start);
+    const order = [start]; let cur = start;
+    while (left.size) {
+      let best = null, bd2 = Infinity;
+      for (const cand of left) { const d = hav(cur.cx, cur.cy, cand.cx, cand.cy); if (d < bd2) { bd2 = d; best = cand; } }
+      order.push(best); left.delete(best); cur = best;
+    }
+    return order;
+  };
+  const BKK_CENTER = [100.4927, 13.7515];               // สนามหลวง — จุดตั้งต้นไล่ระยะ
+
+  // เส้นไทม์ไลน์เดียวไล่ทั่วทุกจังหวัด เริ่มจากเขตพระนคร
+  const seedGrp = groups.find(x => x.isBkk && x.district === 'พระนคร');
+  const order = chain(groups, seedGrp ? [seedGrp.cx, seedGrp.cy] : BKK_CENTER);
+  order.forEach((gr, i) => { gr.seq = i + 1; gr.id = 'd' + i; });
+  DIR.groups = order;
+  DIR.byId.clear(); order.forEach(gr => DIR.byId.set(gr.id, gr));
+
+  // ภาพรวม: ไล่ทีละจังหวัดตามลำดับคงที่ (กทม.ก่อน) ภายในจังหวัดไล่ตามระยะจากใจกลางเมือง
+  DIR.provOrder = PROV_ORDER.map(code => ({ code, name: PROV[code], groups: chain(groups.filter(x => x.provCode === code), BKK_CENTER) }));
+
+  renderDirectory();
+  renderOverview();
+}
+
+function renderDirectory(filter) {
+  const q = norm(filter || '');
+  const rows = DIR.groups.map(gr => {
+    let members = gr.members;
+    let show = !q;
+    if (q) {
+      const dHit = norm(gr.district).includes(q);
+      members = dHit ? gr.members : gr.members.filter(r => norm(r.name).includes(q));
+      show = dHit || members.length > 0;
+    }
+    if (!show) return '';
+    const cls = gr.isBkk ? 'bk' : 'pm';
+    const mi = members.map(r => `<li data-c="${r.id}"><b>${r.unit}${esc(r.name)}</b>
+        <button class="mv" data-c="${r.id}" type="button">ดูแผนที่</button></li>`).join('');
+    return `<details class="dcard ${cls}" data-g="${gr.id}"${q ? ' open' : ''}>
+      <summary>
+        <span class="dnum">${gr.seq}</span>
+        <span class="dtxt"><span class="dn">${gr.distWord}${esc(gr.district)}</span><span class="dp">${gr.isBkk ? 'กรุงเทพมหานคร' : 'จ.' + esc(gr.prov)}</span></span>
+        <span class="dcnt">${gr.members.length} ${gr.isBkk ? 'แขวง' : 'ตำบล'}</span>
+        <svg class="dcaret" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </summary>
+      <ul class="dmembers">${mi}</ul>
+    </details>`;
+  }).join('');
+  $('dblist').innerHTML = rows || '<p class="dbempty">ไม่พบเขตหรือแขวงที่ตรงกับคำค้นหา</p>';
+}
+
+/* ---------- ภาพรวม: จังหวัด → เขต → แขวง แสดงทั้งหมดพร้อมกัน แบบหน้าอ้างอิง ---------- */
+function fillFacets() {
+  const ps = $('db-prov');
+  ps.innerHTML = '<option value="">ทุกจังหวัด</option>' +
+    DIR.provOrder.map(pv => `<option value="${pv.code}">${esc(pv.name)} (${pv.groups.length}${pv.code === 10 ? 'เขต' : 'อำเภอ'})</option>`).join('');
+  fillDistFacet('');
+}
+function fillDistFacet(provCode) {
+  const ds = $('db-dist'), pv = DIR.provOrder.find(x => String(x.code) === String(provCode));
+  const list = pv ? pv.groups : DIR.provOrder.flatMap(x => x.groups);
+  ds.innerHTML = '<option value="">ทุกเขต/อำเภอ</option>' +
+    list.map(gr => `<option value="${gr.id}">${gr.distWord}${esc(gr.district)}</option>`).join('');
+}
+function renderOverview(filter) {
+  const q = norm(filter || '');
+  const provSel = $('db-prov').value, distSel = $('db-dist').value;
+  let html = '';
+  for (const pv of DIR.provOrder) {
+    if (provSel && String(pv.code) !== provSel) continue;
+    let provChunk = '';
+    for (const gr of pv.groups) {
+      if (distSel && gr.id !== distSel) continue;
+      let members = gr.members, dHit = norm(gr.district).includes(q);
+      if (q) members = dHit ? gr.members : gr.members.filter(r => norm(r.name).includes(q));
+      if (q && !dHit && !members.length) continue;
+      const chips = members.map(r => `<button class="chip" data-c="${r.id}" type="button">${r.unit}${esc(r.name)}</button>`).join('');
+      provChunk += `<div class="gdist"><span class="gn">${gr.distWord}${esc(gr.district)}</span><span class="gc">${gr.members.length} ${gr.isBkk ? 'แขวง' : 'ตำบล'}</span></div>
+        <div class="gchips">${chips}</div>`;
+    }
+    if (provChunk) html += `<h3 class="gprov">${esc(pv.name)}<span class="gc">${pv.groups.length}${pv.code === 10 ? ' เขต' : ' อำเภอ'}</span></h3>${provChunk}`;
+  }
+  $('dbgrid').innerHTML = html || '<p class="dbempty">ไม่พบเขตหรือแขวงที่ตรงกับคำค้นหา</p>';
+}
+
+let dbPreview = null;
+function previewRec(rec) {
+  closeDirectory();
+  if (dbPreview) { map.removeLayer(dbPreview.poly); map.removeLayer(dbPreview.lbl); dbPreview = null; }
+  const poly = L.polygon(latlngsOf(rec), Object.assign({ pane: 'polyPane' }, polyStyle('here'))).addTo(map);
+  const rp = repOf(rec);
+  const lbl = L.marker([rp[1], rp[0]], { icon: lblIcon('main', esc(rec.unit + rec.name)), interactive: false }).addTo(map);
+  dbPreview = { poly, lbl, id: rec.id };
+  map.invalidateSize();
+  map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 15 });
+  setStatus(`กำลังดู ${rec.unit}${rec.name} (${rec.distWord}${rec.district}) บนแผนที่ — กดคำนวณเส้นทางเพื่อเริ่มงานจริง`);
+  if (window.matchMedia('(max-width:899px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openDirectory() {
+  const v = $('dbview'); v.classList.add('open'); v.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => $('db-q').focus(), 200);
+}
+function closeDirectory() {
+  const v = $('dbview'); v.classList.remove('open'); v.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+function wireDirectory() {
+  fillFacets();
+  $('btn-db').addEventListener('click', openDirectory);
+  $('db-back').addEventListener('click', closeDirectory);
+  const q = $('db-q'), clr = $('db-clr');
+  const renderActive = () => { renderOverview(q.value); renderDirectory(q.value); };
+  q.addEventListener('input', () => { clr.hidden = !q.value; renderActive(); });
+  clr.addEventListener('click', () => { q.value = ''; clr.hidden = true; renderActive(); q.focus(); });
+
+  $('dbseg').addEventListener('click', e => {
+    const b = e.target.closest('button[data-view]'); if (!b) return;
+    const ov = b.dataset.view === 'ov';
+    [...$('dbseg').children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('dbgrid').hidden = !ov; $('dblist').hidden = ov;
+    $('dbfacets').hidden = !ov;
+  });
+  $('db-prov').addEventListener('change', () => { fillDistFacet($('db-prov').value); renderOverview(q.value); });
+  $('db-dist').addEventListener('change', () => renderOverview(q.value));
+
+  const pickFromEvent = e => {
+    const btn = e.target.closest('.mv, .chip');
+    if (btn) { const r = DB.recs[+btn.dataset.c]; if (r) previewRec(r); return; }
+    const li = e.target.closest('.dmembers li');
+    if (li) { const r = DB.recs[+li.dataset.c]; if (r) previewRec(r); }
+  };
+  $('dbgrid').addEventListener('click', pickFromEvent);
+  $('dblist').addEventListener('click', pickFromEvent);
+}
+
+window.__rider = { S, onFix, DB };
+})();
+</script>
+</body>
+</html>
