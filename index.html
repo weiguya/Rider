@@ -19,7 +19,7 @@
   --ink:#1b2025; --ink-2:#4b545b; --paper:#e6e9ec; --card:#fff; --line:#cdd3d8;
   --green:#0b6b3a; --amber:#f2c12e; --amber-ink:#2b2200;
   --grey:#c3c8c5; --grey-ink:#5d645f;
-  --route:#1746a2; --red:#c8321f;
+  --route:#1746a2; --red:#c8321f; --orange:#d9711f;
   --map-h:36svh;
 }
 *{box-sizing:border-box}
@@ -76,7 +76,7 @@ h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
 .go{width:100%;min-height:58px;margin-top:10px;border:0;border-radius:14px;background:var(--ink);color:#fff;
   font-size:20px;font-weight:700}
 .go:disabled{opacity:.55;cursor:progress}
-.quick2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.quick2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px}
 .qbtn{min-height:48px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:15px;font-weight:700;color:var(--ink)}
 .qbtn:active{background:#eceff1}
 .status{min-height:1.4em;margin:8px 2px 0;font-size:15px;color:var(--ink-2)}
@@ -100,16 +100,14 @@ h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
 .mbtn[aria-pressed="true"]{background:var(--route);border-color:var(--route);color:#fff}
 .lbl{background:none;border:0}
 .lbl .lb{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;
-  font:600 12px/1.1 Prompt,'Noto Sans Thai',sans-serif;color:#083d21;
+  font:700 12.5px/1.1 Prompt,'Noto Sans Thai',sans-serif;color:#083d21;
   text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 5px #fff}
-.lbl .n{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;margin-right:4px;border-radius:9px;
-  background:var(--green);color:#fff;font-size:11px;text-shadow:none}
-.lbl.near .lb{color:#6b5200;font-weight:500;font-size:11px}
+.lbl .n{display:inline-grid;place-items:center;min-width:14px;height:14px;padding:0 3px;margin-right:3px;border-radius:7px;
+  background:rgba(11,107,58,.8);color:#fff;font-size:9px;font-weight:700;text-shadow:none;vertical-align:2px}
+.lbl.near .lb{color:#6b5200;font-weight:600;font-size:11.5px}
 .lbl.passed .lb{color:#7b827d}
-.lbl.passed .n{background:#8b918c}
+.lbl.passed .n{background:rgba(139,145,140,.85)}
 .zlow .lbl.near{display:none}
-.zmid .lbl.main .t{display:none}
-.zmid .lbl .n{margin-right:0}
 .pin .pb{position:absolute;transform:translate(-50%,calc(-100% - 6px));padding:4px 10px;border-radius:8px;color:#fff;
   font:700 14px/1.2 Prompt,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.45);white-space:nowrap}
 .pin .pb::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0}
@@ -136,12 +134,21 @@ h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
 .gps-t b{color:var(--ink);font-size:17px}
 .check{margin:0 0 18px;padding:12px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
 .check label{display:block;margin:0 0 8px;font-size:16px;font-weight:600}
-.verdict{margin-top:10px;padding:12px 14px;border-radius:12px}
-.verdict b{display:block;font-size:20px;font-weight:700;line-height:1.25}
-.verdict span{display:block;margin-top:2px;font-size:15px}
-.verdict.ok{background:#d9f0e2;color:#064d29}
-.verdict.warn{background:#fff1cc;color:var(--amber-ink)}
-.verdict.no{background:#f9dcd7;color:#7d1d10}
+.pins{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.pin-row{display:flex;align-items:center;gap:10px;min-height:56px;padding:9px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
+.pin-row .pdot{flex:none;width:15px;height:15px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(0,0,0,.12)}
+.pin-row .pdot.main{background:var(--green)}
+.pin-row .pdot.near{background:var(--amber)}
+.pin-row .pdot.out{background:var(--orange)}
+.pin-row .pdot.passed{background:var(--grey)}
+.pin-row .ptxt{flex:1;min-width:0}
+.pin-row .pn{display:block;font-size:16px;font-weight:700;overflow-wrap:break-word}
+.pin-row .ps{display:block;margin-top:1px;font-size:13px;color:var(--ink-2)}
+.pin-row .prm{flex:none;min-width:44px;min-height:38px;padding:0 12px;border:1.5px solid var(--line);border-radius:9px;
+  background:#fff;font-size:13px;font-weight:700;color:#7d1d10}
+.jobpin{background:transparent}
+.jp{width:26px;height:26px;margin:-24px 0 0 -13px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+  border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
 h2{margin:20px 0 10px;font-size:18px;font-weight:600}
 .h2row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:22px 0 10px}
 .h2row h2{margin:0}
@@ -186,12 +193,13 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
    6. ฐานข้อมูล — เขต→แขวง แบบไทม์ไลน์ ไล่ตามเขตที่อยู่ใกล้กัน (สำหรับมือใหม่ศึกษาพื้นที่)
    ===================================================================== */
 .dbview{position:fixed;inset:0;z-index:900;background:var(--paper);display:flex;flex-direction:column;
-  transform:translateX(100%);transition:transform .22s ease}
+  overflow-x:hidden;transform:translateX(100%);transition:transform .22s ease}
 .dbview.open{transform:translateX(0)}
-.dbhead{flex:none;background:var(--card);border-bottom:1px solid var(--line);
-  padding:calc(env(safe-area-inset-top) + 10px) 14px 12px;display:grid;gap:10px}
+.dbhead{flex:none;min-width:0;background:var(--card);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 12px;display:flex;flex-direction:column;gap:10px}
+.dbhead > *{min-width:0}
 .dbtop{display:flex;align-items:center;gap:10px}
-.dbtop h2{margin:0;font-size:20px;font-weight:700;flex:1}
+.dbtop h2{margin:0;font-size:20px;font-weight:700;flex:1;min-width:0}
 .dbback{flex:none;width:44px;height:44px;border:2px solid var(--line);border-radius:11px;background:#fff}
 .dbback svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .dbfld{position:relative;display:flex;align-items:center;min-height:52px;border:2px solid var(--line);
@@ -200,15 +208,19 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
 .dbfld input{flex:1;min-width:0;border:0;background:transparent;padding:10px 14px;font-size:18px;outline:none}
 .dbfld .clr{flex:none;width:44px;height:44px;border:0;background:transparent}
 .dbfld .clr svg{width:22px;height:22px;stroke:#767f86;fill:none;stroke-width:2;stroke-linecap:round}
-.dblegend{display:flex;gap:14px;font-size:13px;color:var(--ink-2)}
+.dblegend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--ink-2)}
 .dblegend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
 .dblegend .bk b{background:var(--green)}
 .dblegend .pm b{background:#5b7fd6}
-.dbseg{width:100%}
-.dbseg button{flex:1}
-.dbfacets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.dbsel{min-height:46px;padding:0 10px;border:2px solid var(--line);border-radius:11px;background:#fff;font-size:15px;color:var(--ink)}
-.dblist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px calc(env(safe-area-inset-bottom) + 24px)}
+.dbseg{width:100%;min-width:0}
+.dbseg button{flex:1;min-width:0}
+.dbfacets{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.dbclrf{grid-column:1 / -1;justify-self:start;min-height:36px;padding:0 14px;border:1.5px solid var(--line);
+  border-radius:20px;background:#fff;font-size:13px;font-weight:700;color:var(--route)}
+.dbclrf:active{background:#e7eef9}
+.dbsel{min-width:0;min-height:46px;padding:0 8px;border:2px solid var(--line);border-radius:11px;background:#fff;
+  font-size:14px;color:var(--ink);text-overflow:ellipsis}
+.dblist{flex:1;min-width:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px calc(env(safe-area-inset-bottom) + 24px)}
 .gprov{margin:22px 0 4px;padding-bottom:6px;border-bottom:3px solid var(--ink);font-size:19px;font-weight:700}
 .gprov:first-child{margin-top:0}
 .gprov .gc{margin-left:8px;font-size:13px;font-weight:600;color:var(--ink-2)}
@@ -307,18 +319,18 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
         <div class="gps-t" id="gps-t">เปิด GPS เพื่อให้แขวงที่ผ่านไปแล้วเป็นสีเทาอัตโนมัติ</div>
       </div>
 
-      <section class="check" aria-label="เช็คงานซ้อน">
-        <label for="in-c">งานซ้อนเด้งเข้ามาที่แขวง…</label>
+      <section class="check" aria-label="ปักหมุดงาน">
+        <label for="in-c">ปักหมุดงานที่แขวง… (เพิ่มได้หลายหมุด)</label>
         <div class="fld">
           <span class="dot chk" aria-hidden="true"></span>
-          <input id="in-c" type="text" placeholder="พิมพ์ชื่อแขวงจุดรับของงานซ้อน" autocomplete="off"
-                 autocapitalize="off" spellcheck="false" aria-label="แขวงจุดรับของงานซ้อน">
-          <button class="ic clr" id="clr-c" type="button" aria-label="ล้างช่องเช็คงานซ้อน" hidden>
+          <input id="in-c" type="text" placeholder="พิมพ์ชื่อแขวงจุดรับของงานที่เด้งเข้ามา" autocomplete="off"
+                 autocapitalize="off" spellcheck="false" aria-label="แขวงจุดรับของงานที่จะปักหมุด">
+          <button class="ic clr" id="clr-c" type="button" aria-label="ล้างช่องปักหมุด" hidden>
             <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
           </button>
           <ul class="sg" id="sg-c" role="listbox" hidden></ul>
         </div>
-        <div class="verdict" id="verdict" hidden></div>
+        <ul class="pins" id="pin-list"></ul>
       </section>
 
       <h2>แขวงที่ต้องผ่าน</h2>
@@ -372,6 +384,7 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
         <select id="db-dist" class="dbsel" aria-label="เลือกเขตหรืออำเภอ">
           <option value="">ทุกเขต/อำเภอ</option>
         </select>
+        <button class="dbclrf" id="db-clr-filters" type="button" hidden>✕ ล้างตัวกรอง</button>
       </div>
       <div class="dblegend">
         <span class="bk"><b></b>กรุงเทพมหานคร</span>
@@ -636,7 +649,8 @@ const S = {
   origin: null, dest: null,
   main: [], mainOrder: new Map(),
   near: [], radius: CONFIG.BUFFER_KM,
-  hereOrder: 0, pendingOrd: 0, hereRec: null, progressKm: 0, tracking: false, simulating: false, follow: false
+  hereOrder: 0, pendingOrd: 0, hereRec: null, progressKm: 0, tracking: false, simulating: false, follow: false,
+  pins: []             // งานที่ปักหมุดไว้เทียบกับเส้นทางปัจจุบัน: [{ id, rec, marker }]
 };
 let map, gPoly, gLbl, gRoute, meMk, meAcc, pinO, pinD;
 const polyLayer = new Map(), lblLayer = new Map();
@@ -755,7 +769,7 @@ async function boot() {
 
   pO = makePicker($('in-o'), $('sg-o'), $('clr-o'));
   pD = makePicker($('in-d'), $('sg-d'), $('clr-d'));
-  pC = makePicker($('in-c'), $('sg-c'), $('clr-c'), () => updateVerdict());
+  pC = makePicker($('in-c'), $('sg-c'), $('clr-c'), sel => { if (sel && sel.rec) { addPin(sel.rec); pC.clear(); } });
   document.addEventListener('pointerdown', e => {          // แตะนอกช่อง = ปิดรายการ
     [pO, pD, pC].forEach(p => { if (!p.box.contains(e.target)) p.hide(); });
   });
@@ -778,6 +792,12 @@ async function boot() {
   document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setRadius(+b.dataset.r)));
   $('list-main').addEventListener('click', cardClick);
   $('list-near').addEventListener('click', cardClick);
+  $('pin-list').addEventListener('click', e => {
+    const rm = e.target.closest('.prm');
+    if (rm) { removePin(+rm.dataset.id); return; }
+    const li = e.target.closest('.pin-row');
+    if (li) focusPinRow(+li.dataset.id);
+  });
   window.addEventListener('resize', () => map.invalidateSize());
 
   try {   // จำจุดรับ/จุดส่งล่าสุด
@@ -797,7 +817,7 @@ function initMap() {
   map.createPane('polyPane').style.zIndex = 350;       // ขอบเขตแขวงอยู่ใต้เส้นทาง
   map.createPane('routePane').style.zIndex = 450;
   gPoly = L.layerGroup().addTo(map); gRoute = L.layerGroup().addTo(map); gLbl = L.layerGroup().addTo(map);
-  const zc = () => { const z = map.getZoom(), c = $('map').classList; c.toggle('zlow', z < 12); c.toggle('zmid', z < 13); };
+  const zc = () => { const z = map.getZoom(), c = $('map').classList; c.toggle('zlow', z < 12); };
   map.on('zoomend', zc); zc();
   map.on('dragstart', () => { if (S.follow) setFollow(false); });   // ลากแผนที่เอง = เลิกตาม
 }
@@ -872,7 +892,7 @@ async function useMyLocation() {
     catch (e2) { setStatus(await explainGeoError(e2), true); return; }
   }
   const lng = p.coords.longitude, lat = p.coords.latitude, rec = locate(lng, lat);
-  pO.setPlace({ rec, lng, lat, label: rec ? `ตำแหน่งฉัน — ${rec.label}` : 'ตำแหน่งฉัน' });
+  pO.setPlace({ rec, lng, lat, label: rec ? rec.label : 'ตำแหน่งปัจจุบัน (นอกพื้นที่ข้อมูล)' });
   setStatus(rec ? '' : 'ตำแหน่งนี้อยู่นอกพื้นที่ กทม.และปริมณฑล');
 }
 
@@ -900,6 +920,7 @@ async function calculate() {
     S.radius = S.radius || CONFIG.BUFFER_KM;
     computeNearNow();
     resetTracking();
+    clearPins();
 
     drawRoute(); drawAreas(); renderLists(); applyStates();
     renderSummary();
@@ -907,7 +928,6 @@ async function calculate() {
     map.invalidateSize(); fitAll();
     setStatus('');
     try { localStorage.setItem('rider.last', JSON.stringify({ o: o.rec && o.rec.code, d: d.rec && d.rec.code })); } catch (e) { /* ignore */ }
-    if (pC.value) updateVerdict();
     if (window.matchMedia('(max-width:899px)').matches) window.scrollTo({ top: 0 });
   } catch (e) {
     console.error(e);
@@ -924,11 +944,10 @@ function resetAll() {
   gRoute.clearLayers(); gPoly.clearLayers(); gLbl.clearLayers(); polyLayer.clear(); lblLayer.clear();
   if (meMk) { map.removeLayer(meMk); map.removeLayer(meAcc); meMk = null; meAcc = null; }
   if (dbPreview) { map.removeLayer(dbPreview.poly); map.removeLayer(dbPreview.lbl); dbPreview = null; }
+  clearPins();
   $('out').hidden = true; $('empty').hidden = false;
-  $('verdict').hidden = true;
   setStatus('');
   try { localStorage.removeItem('rider.last'); } catch (e) { /* ignore */ }
-  $('in-o').focus();
 }
 
 function computeNearNow() {
@@ -941,7 +960,7 @@ function setRadius(r) {
   S.radius = r;
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.r === r)));
   if (!S.route) return;
-  computeNearNow(); drawAreas(); renderLists(); applyStates(); updateVerdict();
+  computeNearNow(); drawAreas(); renderLists(); applyStates(); refreshPins();
 }
 
 function renderSummary() {
@@ -1005,7 +1024,7 @@ function applyStates() {
   };
   S.main.forEach(m => each(m.rec, stateMain(m), 'main'));
   S.near.forEach(n => each(n.rec, stateNear(n), 'near'));
-  updateVerdict();
+  refreshPins();
 }
 
 function resetTracking() { S.hereOrder = 0; S.pendingOrd = 0; S.hereRec = null; S.progressKm = 0; }
@@ -1099,27 +1118,69 @@ function stopSim(keepState) {
 }
 
 /* ---------- เช็คงานซ้อน ---------- */
-function updateVerdict() {
-  const v = $('verdict'), pl = pC && pC.value;
-  if (!S.route || !pl || !pl.rec) { v.hidden = true; return; }
-  const rec = pl.rec, m = S.main.find(x => x.rec.id === rec.id), n = S.near.find(x => x.rec.id === rec.id);
-  let cls, t, s = '';
-  if (m) {
-    const st = stateMain(m);
-    if (st === 'passed') { cls = 'no'; t = 'ผ่านมาแล้ว ย้อนทาง ไม่ควรรับ'; s = `แขวงนี้อยู่ลำดับที่ ${m.order} ตอนนี้คุณอยู่ลำดับที่ ${S.hereOrder}`; }
-    else if (st === 'here') { cls = 'ok'; t = 'อยู่แขวงนี้ตอนนี้ รับได้'; }
-    else {
-      cls = 'ok'; t = 'อยู่บนเส้นทางข้างหน้า รับได้';
-      s = `ลำดับที่ ${m.order} จาก ${S.main.length}`;
-      if (S.hereOrder) s += ` อีกประมาณ ${Math.max(0, m.startKm - S.progressKm).toFixed(1)} กม.`;
-      else s += ' เปิด GPS เพื่อเช็คว่าผ่านมาแล้วหรือยัง';
-    }
-  } else if (n) {
-    if (stateNear(n) === 'passed') { cls = 'no'; t = 'อยู่ข้างหลังแล้ว ไม่ควรรับ'; s = 'ใกล้เส้นทางแต่คุณผ่านช่วงนั้นไปแล้ว'; }
-    else { cls = 'warn'; t = 'ใกล้เส้นทาง ต้องเบี่ยง ดูระยะก่อนรับ'; s = `อยู่ในรัศมี ${S.radius} กม. ช่วงกม.ที่ ${n.alongKm.toFixed(0)} ของเส้นทาง`; }
-  } else { cls = 'no'; t = 'ไม่อยู่ในแนวเส้นทาง'; s = `เกินรัศมี ${S.radius} กม. จากเส้นทางหลัก`; }
-  v.className = 'verdict ' + cls; v.hidden = false;
-  v.innerHTML = `<b>${esc(t)}</b>${s ? `<span>${esc(s)}</span>` : ''}`;
+/* ---------- ปักหมุดงาน: เทียบตำแหน่งงานที่เด้งเข้ามากับเส้นทาง/ตำแหน่งปัจจุบัน ---------- */
+const PIN_HEX = { main: '#0b6b3a', near: '#f2c12e', out: '#d9711f', passed: '#9aa09b' };
+const PIN_TXT = { main: 'อยู่บนเส้นทาง รับได้', near: 'ใกล้เส้นทาง ต้องเบี่ยง', out: 'นอกโซนรับ ไม่แนะนำ', passed: 'ผ่านมาแล้ว ย้อนทาง' };
+
+function pinStatus(rec) {
+  const m = S.main.find(x => x.rec.id === rec.id);
+  if (m) return stateMain(m) === 'passed' ? 'passed' : 'main';
+  const n = S.near.find(x => x.rec.id === rec.id);
+  if (n) return stateNear(n) === 'passed' ? 'passed' : 'near';
+  return 'out';
+}
+function pinSub(rec, cls) {
+  if (cls === 'main') {
+    const m = S.main.find(x => x.rec.id === rec.id);
+    let s = `ลำดับที่ ${m.order} จาก ${S.main.length}`;
+    if (S.hereOrder && stateMain(m) !== 'passed') s += ` · อีก ${Math.max(0, m.startKm - S.progressKm).toFixed(1)} กม.`;
+    return s;
+  }
+  if (cls === 'near') { const n = S.near.find(x => x.rec.id === rec.id); return `รัศมี ${S.radius} กม. · ช่วง กม.ที่ ${n.alongKm.toFixed(0)}`; }
+  if (cls === 'passed') return 'อยู่หลังตำแหน่งปัจจุบันแล้ว';
+  return `เกินรัศมี ${S.radius} กม. จากเส้นทาง`;
+}
+function pinDotIcon(hex) {
+  return L.divIcon({ className: 'jobpin', html: `<div class="jp" style="background:${hex}"></div>`, iconSize: [0, 0] });
+}
+function addPin(rec) {
+  if (S.pins.some(p => p.id === rec.id)) { focusPinRow(rec.id); return; }
+  S.pins.push({ id: rec.id, rec, marker: null });
+  refreshPins();
+}
+function removePin(id) {
+  const p = S.pins.find(x => x.id === id);
+  if (p && p.marker) map.removeLayer(p.marker);
+  S.pins = S.pins.filter(x => x.id !== id);
+  renderPins();
+}
+function clearPins() { S.pins.forEach(p => { if (p.marker) map.removeLayer(p.marker); }); S.pins = []; renderPins(); }
+function renderPins() {
+  const ul = $('pin-list');
+  ul.innerHTML = S.pins.map(p => {
+    const cls = S.route ? pinStatus(p.rec) : 'out', sub = S.route ? pinSub(p.rec, cls) : 'ยังไม่ได้คำนวณเส้นทาง';
+    return `<li class="pin-row" data-id="${p.id}">
+      <span class="pdot ${cls}"></span>
+      <div class="ptxt"><span class="pn">${p.rec.unit}${esc(p.rec.name)}</span><span class="ps">${esc(sub)}</span></div>
+      <button class="prm" data-id="${p.id}" type="button">ลบ</button>
+    </li>`;
+  }).join('');
+}
+function updatePinMarkers() {
+  S.pins.forEach(p => {
+    const cls = S.route ? pinStatus(p.rec) : 'out', hex = PIN_HEX[cls], rp = repOf(p.rec);
+    if (!p.marker) {
+      p.marker = L.marker([rp[1], rp[0]], { icon: pinDotIcon(hex), zIndexOffset: 800 }).addTo(map);
+      p.marker.on('click', () => focusPinRow(p.id));
+    } else p.marker.setIcon(pinDotIcon(hex));
+  });
+}
+function refreshPins() { renderPins(); updatePinMarkers(); }
+function focusPinRow(id) {
+  const li = document.querySelector(`.pin-row[data-id="${id}"]`);
+  if (li) li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  const p = S.pins.find(x => x.id === id);
+  if (p && p.marker) map.panTo(p.marker.getLatLng());
 }
 
 /* ---- hook สำหรับทดสอบ ---- */
@@ -1255,10 +1316,17 @@ function wireDirectory() {
   fillFacets();
   $('btn-db').addEventListener('click', openDirectory);
   $('db-back').addEventListener('click', closeDirectory);
-  const q = $('db-q'), clr = $('db-clr');
-  const renderActive = () => { renderOverview(q.value); renderDirectory(q.value); };
+  const q = $('db-q'), clr = $('db-clr'), fclr = $('db-clr-filters');
+  const filtersActive = () => !!(q.value || $('db-prov').value || $('db-dist').value);
+  const syncFclr = () => { fclr.hidden = !filtersActive(); };
+  const renderActive = () => { renderOverview(q.value); renderDirectory(q.value); syncFclr(); };
   q.addEventListener('input', () => { clr.hidden = !q.value; renderActive(); });
   clr.addEventListener('click', () => { q.value = ''; clr.hidden = true; renderActive(); q.focus(); });
+  fclr.addEventListener('click', () => {
+    q.value = ''; clr.hidden = true;
+    $('db-prov').value = ''; fillDistFacet(''); $('db-dist').value = '';
+    renderActive();
+  });
 
   $('dbseg').addEventListener('click', e => {
     const b = e.target.closest('button[data-view]'); if (!b) return;
@@ -1267,8 +1335,8 @@ function wireDirectory() {
     $('dbgrid').hidden = !ov; $('dblist').hidden = ov;
     $('dbfacets').hidden = !ov;
   });
-  $('db-prov').addEventListener('change', () => { fillDistFacet($('db-prov').value); renderOverview(q.value); });
-  $('db-dist').addEventListener('change', () => renderOverview(q.value));
+  $('db-prov').addEventListener('change', () => { fillDistFacet($('db-prov').value); renderOverview(q.value); syncFclr(); });
+  $('db-dist').addEventListener('change', () => { renderOverview(q.value); syncFclr(); });
 
   const pickFromEvent = e => {
     const btn = e.target.closest('.mv, .chip');
