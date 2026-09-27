@@ -53,6 +53,8 @@ button{cursor:pointer}
    3. SEARCH PANEL
    ===================================================================== */
 h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
+.titlerow{display:flex;align-items:baseline;gap:8px}
+.ver{flex:none;font-size:12px;font-weight:700;color:var(--ink-2);background:#eef1f3;border-radius:999px;padding:2px 9px}
 .tagline{margin:0;font-size:14px;color:var(--ink-2)}
 .fields{display:grid;grid-template-columns:1fr 48px;gap:8px;margin-top:10px}
 .fld{position:relative;min-width:0;display:flex;align-items:center;min-height:56px;border:2px solid var(--line);
@@ -268,7 +270,10 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
 
   <!-- ================== HTML STRUCTURE 1: ค้นหา ================== -->
   <header class="search">
-    <h1>ไล่แขวง</h1>
+    <div class="titlerow">
+      <h1>ไล่แขวง</h1>
+      <span class="ver">Ver.1</span>
+    </div>
     <p class="tagline">ดูว่าเส้นทางผ่านแขวงไหนบ้าง ก่อนรับงานซ้อน</p>
 
     <div class="fields">
@@ -427,7 +432,7 @@ const CONFIG = {
   BUFFER_KM: 1.5,
   SNAP_MAX_KM: 0.8,      // ห่างเส้นทางเกินนี้ถือว่าออกนอกเส้น
   ACC_MAX_M: 150,        // GPS แม่นยำน้อยกว่านี้ไม่ใช้ตัดสินว่าผ่านแขวง
-  TILE_URL: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+  TILE_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 };
 
 /* ==CORE-START== (ส่วนคำนวณล้วน ไม่แตะ DOM — ทดสอบใน Node ได้) ============================ */
@@ -823,7 +828,7 @@ async function boot() {
 function initMap() {
   map = L.map('map', { zoomControl: false }).setView([13.7563, 100.5018], 11);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
-  L.tileLayer(CONFIG.TILE_URL, { subdomains: 'abcd', maxZoom: 19, attribution: '© OpenStreetMap · © CARTO' }).addTo(map);
+  L.tileLayer(CONFIG.TILE_URL, { subdomains: 'abc', maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
   map.createPane('polyPane').style.zIndex = 350;       // ขอบเขตแขวงอยู่ใต้เส้นทาง
   map.createPane('routePane').style.zIndex = 450;
   gPoly = L.layerGroup().addTo(map); gRoute = L.layerGroup().addTo(map); gLbl = L.layerGroup().addTo(map);
