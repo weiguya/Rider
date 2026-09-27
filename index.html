@@ -19,7 +19,7 @@
   --ink:#1b2025; --ink-2:#4b545b; --paper:#e6e9ec; --card:#fff; --line:#cdd3d8;
   --green:#0b6b3a; --amber:#f2c12e; --amber-ink:#2b2200;
   --grey:#c3c8c5; --grey-ink:#5d645f;
-  --route:#1746a2; --red:#c8321f; --orange:#d9711f;
+  --route:#1746a2; --red:#c8321f; --orange:#d9711f; --pin:#c2185b;
   --map-h:36svh;
 }
 *{box-sizing:border-box}
@@ -136,19 +136,21 @@ h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
 .check label{display:block;margin:0 0 8px;font-size:16px;font-weight:600}
 .pins{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
 .pin-row{display:flex;align-items:center;gap:10px;min-height:56px;padding:9px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
-.pin-row .pdot{flex:none;width:15px;height:15px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(0,0,0,.12)}
+.pin-row .pdot{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  font-size:12px;font-weight:800;color:#fff;box-shadow:inset 0 0 0 2px rgba(0,0,0,.12)}
 .pin-row .pdot.main{background:var(--green)}
-.pin-row .pdot.near{background:var(--amber)}
+.pin-row .pdot.near{background:var(--amber);color:var(--amber-ink)}
 .pin-row .pdot.out{background:var(--orange)}
-.pin-row .pdot.passed{background:var(--grey)}
+.pin-row .pdot.passed{background:var(--grey);color:var(--grey-ink)}
 .pin-row .ptxt{flex:1;min-width:0}
 .pin-row .pn{display:block;font-size:16px;font-weight:700;overflow-wrap:break-word}
 .pin-row .ps{display:block;margin-top:1px;font-size:13px;color:var(--ink-2)}
 .pin-row .prm{flex:none;min-width:44px;min-height:38px;padding:0 12px;border:1.5px solid var(--line);border-radius:9px;
   background:#fff;font-size:13px;font-weight:700;color:#7d1d10}
 .jobpin{background:transparent}
-.jp{width:26px;height:26px;margin:-24px 0 0 -13px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-  border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.jp{width:28px;height:28px;margin:-26px 0 0 -14px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+  background:var(--pin);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);display:grid;place-items:center}
+.jp span{transform:rotate(45deg);color:#fff;font-size:12px;font-weight:800;font-family:Prompt,'Noto Sans Thai',sans-serif}
 h2{margin:20px 0 10px;font-size:18px;font-weight:600}
 .h2row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:22px 0 10px}
 .h2row h2{margin:0}
@@ -218,8 +220,14 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
 .dbclrf{grid-column:1 / -1;justify-self:start;min-height:36px;padding:0 14px;border:1.5px solid var(--line);
   border-radius:20px;background:#fff;font-size:13px;font-weight:700;color:var(--route)}
 .dbclrf:active{background:#e7eef9}
-.dbsel{min-width:0;min-height:46px;padding:0 8px;border:2px solid var(--line);border-radius:11px;background:#fff;
-  font-size:14px;color:var(--ink);text-overflow:ellipsis}
+.ddwrap{position:relative;min-width:0}
+.ddbtn{width:100%;min-width:0;min-height:46px;padding:0 28px 0 12px;border:2px solid var(--line);border-radius:11px;
+  background:#fff;font-size:14px;font-weight:600;color:var(--ink);text-align:left;position:relative;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ddbtn::after{content:'';position:absolute;right:13px;top:50%;width:8px;height:8px;margin-top:-6px;
+  border-right:2px solid #767f86;border-bottom:2px solid #767f86;transform:rotate(45deg)}
+.ddbtn[aria-expanded="true"]{border-color:var(--ink)}
+.ddlist li{min-height:46px;display:flex;align-items:center;font-size:15px;font-weight:600;padding:9px 12px}
 .dblist{flex:1;min-width:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px calc(env(safe-area-inset-bottom) + 24px)}
 .gprov{margin:22px 0 4px;padding-bottom:6px;border-bottom:3px solid var(--ink);font-size:19px;font-weight:700}
 .gprov:first-child{margin-top:0}
@@ -338,7 +346,7 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
 
       <div class="h2row">
         <h2>แขวงใกล้เคียง</h2>
-        <div class="seg" role="group" aria-label="รัศมีเผื่อ">
+        <div class="seg" id="radius-seg" role="group" aria-label="รัศมีเผื่อ">
           <button type="button" data-r="1" aria-pressed="false">1 กม.</button>
           <button type="button" data-r="1.5" aria-pressed="true">1.5 กม.</button>
           <button type="button" data-r="2" aria-pressed="false">2 กม.</button>
@@ -378,12 +386,14 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
         <button type="button" data-view="tl" aria-pressed="false">ไทม์ไลน์</button>
       </div>
       <div class="dbfacets" id="dbfacets">
-        <select id="db-prov" class="dbsel" aria-label="เลือกจังหวัด">
-          <option value="">ทุกจังหวัด</option>
-        </select>
-        <select id="db-dist" class="dbsel" aria-label="เลือกเขตหรืออำเภอ">
-          <option value="">ทุกเขต/อำเภอ</option>
-        </select>
+        <div class="ddwrap">
+          <button class="ddbtn" id="db-prov-btn" type="button" aria-haspopup="listbox" aria-expanded="false">ทุกจังหวัด</button>
+          <ul class="sg ddlist" id="db-prov-list" role="listbox" hidden></ul>
+        </div>
+        <div class="ddwrap">
+          <button class="ddbtn" id="db-dist-btn" type="button" aria-haspopup="listbox" aria-expanded="false">ทุกเขต/อำเภอ</button>
+          <ul class="sg ddlist" id="db-dist-list" role="listbox" hidden></ul>
+        </div>
         <button class="dbclrf" id="db-clr-filters" type="button" hidden>✕ ล้างตัวกรอง</button>
       </div>
       <div class="dblegend">
@@ -460,8 +470,8 @@ function buildRecs(fc) {
       id: recs.length, code: p.code, name: p.name, district: p.district, prov, provCode: p.provCode, isBkk, alias: p.alias,
       unit: isBkk ? 'แขวง' : 'ตำบล', distWord: isBkk ? 'เขต' : 'อำเภอ',
       // ป้ายเต็ม ใช้แยกชื่อซ้ำ เช่น แขวงบางมด (เขตจอมทอง) / แขวงบางมด (เขตทุ่งครุ)
-      label: isBkk ? `แขวง${p.name} (เขต${p.district})` : `ตำบล${p.name} (อำเภอ${p.district} จ.${prov})`,
-      sub: (isBkk ? `เขต${p.district}` : `อำเภอ${p.district} จ.${prov}`) + (p.alias.length ? ` · รวมแขวง${p.alias.join(' ')}` : ''),
+      label: isBkk ? `${p.name} (เขต${p.district})` : `${p.name} (อำเภอ${p.district} จ.${prov})`,
+      sub: (isBkk ? `เขต${p.district}` : `อำเภอ${p.district} จ.${prov}`) + (p.alias.length ? ` · รวม ${p.alias.join(' ')}` : ''),
       keys: [norm(p.name), ...p.alias.map(norm)], dkey: norm(p.district), pkey: norm(prov),
       geom: g, polys, bbox: [x0, y0, x1, y1], _rep: null
     });
@@ -685,7 +695,7 @@ function makePicker(input, list, clearBtn, onChange) {
     const q = sel ? '' : input.value.trim();                 // แตะช่องที่เลือกไว้แล้ว = เลือกใหม่จากรายการทั้งหมด
     items = q ? searchScored(q).slice(0, 8).map(x => x.r) : browseAll();
     if (!items.length) { hide(); return; }
-    list.innerHTML = items.map((r, i) => `<li role="option" data-i="${i}"><b>${r.unit}${esc(r.name)}</b><span>${esc(r.sub)}</span></li>`).join('');
+    list.innerHTML = items.map((r, i) => `<li role="option" data-i="${i}"><b>${esc(r.name)}</b><span>${esc(r.sub)}</span></li>`).join('');
     list.hidden = false; act = -1;
     fitList();
   }
@@ -789,7 +799,7 @@ async function boot() {
   $('btn-sim').addEventListener('click', () => (S.simulating ? stopSim() : startSim()));
   $('btn-fit').addEventListener('click', fitAll);
   $('btn-follow').addEventListener('click', () => setFollow(!S.follow));
-  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setRadius(+b.dataset.r)));
+  document.querySelectorAll('#radius-seg button').forEach(b => b.addEventListener('click', () => setRadius(+b.dataset.r)));
   $('list-main').addEventListener('click', cardClick);
   $('list-near').addEventListener('click', cardClick);
   $('pin-list').addEventListener('click', e => {
@@ -957,8 +967,9 @@ function computeNearNow() {
   } catch (e) { console.error('คำนวณแขวงใกล้เคียงไม่สำเร็จ', e); S.near = []; }
 }
 function setRadius(r) {
+  if (!Number.isFinite(r)) return;   // กันค่าผิดพลาดจากปุ่มอื่นที่ดันมาเรียกโดยไม่ตั้งใจ
   S.radius = r;
-  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.r === r)));
+  document.querySelectorAll('#radius-seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.r === r)));
   if (!S.route) return;
   computeNearNow(); drawAreas(); renderLists(); applyStates(); refreshPins();
 }
@@ -983,13 +994,13 @@ function renderLists() {
     const role = m.order === 1 ? 'จุดรับ' : m.order === S.main.length ? 'จุดส่ง' : '';
     return `<li class="sign main" data-id="${m.rec.id}" data-kind="main" tabindex="0">
       <span class="no">${m.order}</span>
-      <div><span class="nm">${m.rec.unit}${esc(m.rec.name)}</span><span class="ds">${esc(m.rec.sub)}</span></div>
+      <div><span class="nm">${esc(m.rec.name)}</span><span class="ds">${esc(m.rec.sub)}</span></div>
       <div class="km"><div class="tags"><span class="tag role">${role}</span><span class="tag st"></span></div>
         ${m.order === 1 ? '' : `${m.startKm.toFixed(1)} กม.<small>จากจุดรับ</small>`}</div></li>`;
   }).join('');
   on.innerHTML = S.near.length ? S.near.map(n =>
     `<li class="sign near" data-id="${n.rec.id}" data-kind="near" tabindex="0">
-      <div><span class="nm">${n.rec.unit}${esc(n.rec.name)}</span><span class="ds">${esc(n.rec.sub)}</span></div>
+      <div><span class="nm">${esc(n.rec.name)}</span><span class="ds">${esc(n.rec.sub)}</span></div>
       <div class="km"><div class="tags"><span class="tag st"></span></div>ช่วง ${n.alongKm.toFixed(0)} กม.<small>ของเส้นทาง</small></div></li>`).join('')
     : '<li class="hint">ไม่มีแขวงอื่นในรัศมีนี้</li>';
 }
@@ -1058,7 +1069,7 @@ function onFix(lat, lng, acc) {
   }
   applyStates();
 
-  const where = rec ? `${rec.unit}${esc(rec.name)}` : 'นอกพื้นที่ข้อมูล';
+  const where = rec ? `${esc(rec.name)}` : 'นอกพื้นที่ข้อมูล';
   const remain = Math.max(0, S.route.totalKm - S.progressKm);
   setGpsText(`<b>${where}</b>${onRoute ? ` เหลืออีก ${remain.toFixed(1)} กม.` : ' — ออกนอกเส้นทางหลัก'}${S.simulating ? ' (จำลอง)' : ''}`);
 }
@@ -1119,9 +1130,6 @@ function stopSim(keepState) {
 
 /* ---------- เช็คงานซ้อน ---------- */
 /* ---------- ปักหมุดงาน: เทียบตำแหน่งงานที่เด้งเข้ามากับเส้นทาง/ตำแหน่งปัจจุบัน ---------- */
-const PIN_HEX = { main: '#0b6b3a', near: '#f2c12e', out: '#d9711f', passed: '#9aa09b' };
-const PIN_TXT = { main: 'อยู่บนเส้นทาง รับได้', near: 'ใกล้เส้นทาง ต้องเบี่ยง', out: 'นอกโซนรับ ไม่แนะนำ', passed: 'ผ่านมาแล้ว ย้อนทาง' };
-
 function pinStatus(rec) {
   const m = S.main.find(x => x.rec.id === rec.id);
   if (m) return stateMain(m) === 'passed' ? 'passed' : 'main';
@@ -1140,8 +1148,9 @@ function pinSub(rec, cls) {
   if (cls === 'passed') return 'อยู่หลังตำแหน่งปัจจุบันแล้ว';
   return `เกินรัศมี ${S.radius} กม. จากเส้นทาง`;
 }
-function pinDotIcon(hex) {
-  return L.divIcon({ className: 'jobpin', html: `<div class="jp" style="background:${hex}"></div>`, iconSize: [0, 0] });
+// หมุดบนแผนที่ใช้สีเดียวกันหมด (เด่นชัด ไม่อิงโซน) — ใส่แค่เลขลำดับกำกับให้ตรงกับรายการด้านล่าง
+function jobPinIcon(seq) {
+  return L.divIcon({ className: 'jobpin', html: `<div class="jp"><span>${seq}</span></div>`, iconSize: [0, 0] });
 }
 function addPin(rec) {
   if (S.pins.some(p => p.id === rec.id)) { focusPinRow(rec.id); return; }
@@ -1152,27 +1161,27 @@ function removePin(id) {
   const p = S.pins.find(x => x.id === id);
   if (p && p.marker) map.removeLayer(p.marker);
   S.pins = S.pins.filter(x => x.id !== id);
-  renderPins();
+  refreshPins();
 }
 function clearPins() { S.pins.forEach(p => { if (p.marker) map.removeLayer(p.marker); }); S.pins = []; renderPins(); }
 function renderPins() {
   const ul = $('pin-list');
-  ul.innerHTML = S.pins.map(p => {
+  ul.innerHTML = S.pins.map((p, i) => {
     const cls = S.route ? pinStatus(p.rec) : 'out', sub = S.route ? pinSub(p.rec, cls) : 'ยังไม่ได้คำนวณเส้นทาง';
     return `<li class="pin-row" data-id="${p.id}">
-      <span class="pdot ${cls}"></span>
-      <div class="ptxt"><span class="pn">${p.rec.unit}${esc(p.rec.name)}</span><span class="ps">${esc(sub)}</span></div>
+      <span class="pdot ${cls}">${i + 1}</span>
+      <div class="ptxt"><span class="pn">${esc(p.rec.name)}</span><span class="ps">${esc(sub)}</span></div>
       <button class="prm" data-id="${p.id}" type="button">ลบ</button>
     </li>`;
   }).join('');
 }
 function updatePinMarkers() {
-  S.pins.forEach(p => {
-    const cls = S.route ? pinStatus(p.rec) : 'out', hex = PIN_HEX[cls], rp = repOf(p.rec);
+  S.pins.forEach((p, i) => {
+    const rp = repOf(p.rec);
     if (!p.marker) {
-      p.marker = L.marker([rp[1], rp[0]], { icon: pinDotIcon(hex), zIndexOffset: 800 }).addTo(map);
+      p.marker = L.marker([rp[1], rp[0]], { icon: jobPinIcon(i + 1), zIndexOffset: 800 }).addTo(map);
       p.marker.on('click', () => focusPinRow(p.id));
-    } else p.marker.setIcon(pinDotIcon(hex));
+    } else p.marker.setIcon(jobPinIcon(i + 1));
   });
 }
 function refreshPins() { renderPins(); updatePinMarkers(); }
@@ -1240,7 +1249,7 @@ function renderDirectory(filter) {
     }
     if (!show) return '';
     const cls = gr.isBkk ? 'bk' : 'pm';
-    const mi = members.map(r => `<li data-c="${r.id}"><b>${r.unit}${esc(r.name)}</b>
+    const mi = members.map(r => `<li data-c="${r.id}"><b>${esc(r.name)}</b>
         <button class="mv" data-c="${r.id}" type="button">ดูแผนที่</button></li>`).join('');
     return `<details class="dcard ${cls}" data-g="${gr.id}"${q ? ' open' : ''}>
       <summary>
@@ -1256,21 +1265,23 @@ function renderDirectory(filter) {
 }
 
 /* ---------- ภาพรวม: จังหวัด → เขต → แขวง แสดงทั้งหมดพร้อมกัน แบบหน้าอ้างอิง ---------- */
+const FAC = { prov: '', dist: '' };   // สถานะฟิลเตอร์ภาพรวม: จังหวัด/เขต ที่เลือกอยู่
 function fillFacets() {
-  const ps = $('db-prov');
-  ps.innerHTML = '<option value="">ทุกจังหวัด</option>' +
-    DIR.provOrder.map(pv => `<option value="${pv.code}">${esc(pv.name)} (${pv.groups.length}${pv.code === 10 ? 'เขต' : 'อำเภอ'})</option>`).join('');
+  ddProv.setLabel('ทุกจังหวัด'); FAC.prov = '';
   fillDistFacet('');
 }
 function fillDistFacet(provCode) {
-  const ds = $('db-dist'), pv = DIR.provOrder.find(x => String(x.code) === String(provCode));
+  FAC.dist = '';
+  ddDist.setLabel('ทุกเขต/อำเภอ');
+}
+function distOptionsFor(provCode) {
+  const pv = DIR.provOrder.find(x => String(x.code) === String(provCode));
   const list = pv ? pv.groups : DIR.provOrder.flatMap(x => x.groups);
-  ds.innerHTML = '<option value="">ทุกเขต/อำเภอ</option>' +
-    list.map(gr => `<option value="${gr.id}">${gr.distWord}${esc(gr.district)}</option>`).join('');
+  return [{ value: '', label: 'ทุกเขต/อำเภอ' }, ...list.map(gr => ({ value: gr.id, label: `${gr.distWord}${gr.district}` }))];
 }
 function renderOverview(filter) {
   const q = norm(filter || '');
-  const provSel = $('db-prov').value, distSel = $('db-dist').value;
+  const provSel = FAC.prov, distSel = FAC.dist;
   let html = '';
   for (const pv of DIR.provOrder) {
     if (provSel && String(pv.code) !== provSel) continue;
@@ -1280,7 +1291,7 @@ function renderOverview(filter) {
       let members = gr.members, dHit = norm(gr.district).includes(q);
       if (q) members = dHit ? gr.members : gr.members.filter(r => norm(r.name).includes(q));
       if (q && !dHit && !members.length) continue;
-      const chips = members.map(r => `<button class="chip" data-c="${r.id}" type="button">${r.unit}${esc(r.name)}</button>`).join('');
+      const chips = members.map(r => `<button class="chip" data-c="${r.id}" type="button">${esc(r.name)}</button>`).join('');
       provChunk += `<div class="gdist"><span class="gn">${gr.distWord}${esc(gr.district)}</span><span class="gc">${gr.members.length} ${gr.isBkk ? 'แขวง' : 'ตำบล'}</span></div>
         <div class="gchips">${chips}</div>`;
     }
@@ -1295,36 +1306,63 @@ function previewRec(rec) {
   if (dbPreview) { map.removeLayer(dbPreview.poly); map.removeLayer(dbPreview.lbl); dbPreview = null; }
   const poly = L.polygon(latlngsOf(rec), Object.assign({ pane: 'polyPane' }, polyStyle('here'))).addTo(map);
   const rp = repOf(rec);
-  const lbl = L.marker([rp[1], rp[0]], { icon: lblIcon('main', esc(rec.unit + rec.name)), interactive: false }).addTo(map);
+  const lbl = L.marker([rp[1], rp[0]], { icon: lblIcon('main', esc(rec.name)), interactive: false }).addTo(map);
   dbPreview = { poly, lbl, id: rec.id };
   map.invalidateSize();
   map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 15 });
-  setStatus(`กำลังดู ${rec.unit}${rec.name} (${rec.distWord}${rec.district}) บนแผนที่ — กดคำนวณเส้นทางเพื่อเริ่มงานจริง`);
+  setStatus(`กำลังดู ${rec.name} (${rec.distWord}${rec.district}) บนแผนที่ — กดคำนวณเส้นทางเพื่อเริ่มงานจริง`);
   if (window.matchMedia('(max-width:899px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function openDirectory() {
   const v = $('dbview'); v.classList.add('open'); v.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
-  setTimeout(() => $('db-q').focus(), 200);
 }
 function closeDirectory() {
   const v = $('dbview'); v.classList.remove('open'); v.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
+  ddProv.hide(); ddDist.hide();
 }
+
+// ดรอปดาวน์แบบกดแล้วลงมาให้เลือกเลย (ไม่ใช้ native <select> ที่เด้งเป็นวงล้อ/โมดัลของระบบ)
+function makeSimpleDropdown(btn, list, getOptions, onSelect) {
+  let open = false;
+  function render() { list.innerHTML = getOptions().map(o => `<li role="option" data-v="${esc(String(o.value))}">${esc(o.label)}</li>`).join(''); }
+  function show() { render(); list.hidden = false; open = true; btn.setAttribute('aria-expanded', 'true'); }
+  function hide() { list.hidden = true; open = false; btn.setAttribute('aria-expanded', 'false'); }
+  btn.addEventListener('click', () => (open ? hide() : show()));
+  list.addEventListener('click', e => {
+    const li = e.target.closest('li'); if (!li) return;
+    hide(); onSelect(li.dataset.v, li.textContent);
+  });
+  return { hide, box: btn.parentElement, setLabel: t => { btn.textContent = t; } };
+}
+
+let ddProv, ddDist;
 function wireDirectory() {
+  const q = $('db-q'), clr = $('db-clr'), fclr = $('db-clr-filters');
+  const filtersActive = () => !!(q.value || FAC.prov || FAC.dist);
+  const syncFclr = () => { fclr.hidden = !filtersActive(); };
+
+  ddProv = makeSimpleDropdown($('db-prov-btn'), $('db-prov-list'), () =>
+    [{ value: '', label: 'ทุกจังหวัด' }, ...DIR.provOrder.map(pv => ({ value: pv.code, label: `${pv.name} (${pv.groups.length}${pv.code === 10 ? 'เขต' : 'อำเภอ'})` }))],
+    (val, label) => {
+      FAC.prov = val; ddProv.setLabel(label);
+      FAC.dist = ''; ddDist.setLabel('ทุกเขต/อำเภอ');
+      renderOverview(q.value); syncFclr();
+    });
+  ddDist = makeSimpleDropdown($('db-dist-btn'), $('db-dist-list'), () => distOptionsFor(FAC.prov),
+    (val, label) => { FAC.dist = val; ddDist.setLabel(label); renderOverview(q.value); syncFclr(); });
+
   fillFacets();
   $('btn-db').addEventListener('click', openDirectory);
   $('db-back').addEventListener('click', closeDirectory);
-  const q = $('db-q'), clr = $('db-clr'), fclr = $('db-clr-filters');
-  const filtersActive = () => !!(q.value || $('db-prov').value || $('db-dist').value);
-  const syncFclr = () => { fclr.hidden = !filtersActive(); };
   const renderActive = () => { renderOverview(q.value); renderDirectory(q.value); syncFclr(); };
   q.addEventListener('input', () => { clr.hidden = !q.value; renderActive(); });
   clr.addEventListener('click', () => { q.value = ''; clr.hidden = true; renderActive(); q.focus(); });
   fclr.addEventListener('click', () => {
     q.value = ''; clr.hidden = true;
-    $('db-prov').value = ''; fillDistFacet(''); $('db-dist').value = '';
+    FAC.prov = ''; ddProv.setLabel('ทุกจังหวัด'); FAC.dist = ''; ddDist.setLabel('ทุกเขต/อำเภอ');
     renderActive();
   });
 
@@ -1334,9 +1372,8 @@ function wireDirectory() {
     [...$('dbseg').children].forEach(x => x.setAttribute('aria-pressed', String(x === b)));
     $('dbgrid').hidden = !ov; $('dblist').hidden = ov;
     $('dbfacets').hidden = !ov;
+    if (!ov) { ddProv.hide(); ddDist.hide(); }
   });
-  $('db-prov').addEventListener('change', () => { fillDistFacet($('db-prov').value); renderOverview(q.value); syncFclr(); });
-  $('db-dist').addEventListener('change', () => { renderOverview(q.value); syncFclr(); });
 
   const pickFromEvent = e => {
     const btn = e.target.closest('.mv, .chip');
@@ -1346,6 +1383,10 @@ function wireDirectory() {
   };
   $('dbgrid').addEventListener('click', pickFromEvent);
   $('dblist').addEventListener('click', pickFromEvent);
+
+  document.addEventListener('pointerdown', e => {          // แตะนอกช่อง = ปิดรายการ
+    [ddProv, ddDist].forEach(d => { if (!d.box.contains(e.target)) d.hide(); });
+  });
 }
 
 window.__rider = { S, onFix, DB };
