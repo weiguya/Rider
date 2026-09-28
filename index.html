@@ -78,6 +78,19 @@ h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
 .go{width:100%;min-height:58px;margin-top:10px;border:0;border-radius:14px;background:var(--ink);color:#fff;
   font-size:20px;font-weight:700}
 .go:disabled{opacity:.55;cursor:progress}
+.mic{width:100%;min-height:52px;margin-top:10px;border:2px solid var(--ink);border-radius:14px;background:#fff;
+  display:flex;align-items:center;justify-content:center;gap:10px;font-size:17px;font-weight:700;color:var(--ink)}
+.mic svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mic[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff;animation:micpulse 1.4s ease-in-out infinite}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(200,50,31,.45)}50%{box-shadow:0 0 0 8px rgba(200,50,31,0)}}
+@media (prefers-reduced-motion:reduce){.mic[aria-pressed="true"]{animation:none}}
+.vbox{margin-top:10px;padding:12px;border-radius:12px;background:#fff1cc;border:2px solid var(--amber-ink);display:grid;gap:10px}
+.vheard{font-size:14px;color:var(--amber-ink)}
+.vslot b{display:block;margin-bottom:6px;font-size:15px;color:var(--amber-ink)}
+.vchips{display:flex;flex-wrap:wrap;gap:8px}
+.vchip{min-height:48px;padding:6px 14px;border:2px solid var(--amber-ink);border-radius:12px;background:#fff;text-align:left;font-size:16px;font-weight:700;color:var(--ink)}
+.vchip small{display:block;font-size:12px;font-weight:500;color:var(--ink-2)}
+.vmsg{font-size:15px;color:var(--amber-ink)}
 .quick2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px}
 .qbtn{min-height:48px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:15px;font-weight:700;color:var(--ink)}
 .qbtn:active{background:#eceff1}
@@ -272,7 +285,7 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
   <header class="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.1</span>
+      <span class="ver">Ver.2</span>
     </div>
     <p class="tagline">ดูว่าเส้นทางผ่านแขวงไหนบ้าง ก่อนรับงานซ้อน</p>
 
@@ -302,6 +315,11 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
         <svg viewBox="0 0 24 24"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4"/></svg>
       </button>
     </div>
+    <button class="mic" id="btn-mic" type="button" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <span id="mic-txt">พูดจุดรับ-จุดส่งทีเดียว</span>
+    </button>
+    <div class="vbox" id="voice-box" hidden></div>
     <button class="go" id="btn-go" type="button">คำนวณเส้นทาง</button>
     <div class="quick2">
       <button class="qbtn" id="btn-db" type="button">รายชื่อแขวง</button>
@@ -613,6 +631,80 @@ function computeNear(coords, samples, mainIds, radiusKm) {
   return { near: out, buffer: buf };
 }
 
+/* ---------- พูดจุดรับ-จุดส่งพร้อมกัน: ตัดพยางค์ในประโยคที่พูดมาเทียบกับรายชื่อแขวงทั้งหมด ---------- */
+const VOICE_STRIP_FILLER = /(จุดรับ|จุดส่ง|ไปส่ง|ไปที่|รับที่|ส่งที่|ที่)/g;
+function prepTranscript(raw) {
+  let s = String(raw || '').replace(VOICE_STRIP_FILLER, '').replace(/\s+/g, '');
+  // ตัด "เขต/อำเภอ + ชื่อเขต" ทิ้งก่อน — เป็นคำใบ้ ไม่ใช่ชื่อจุด (กันเขตที่มีแขวงชื่อเดียวกันมาแย่งตำแหน่ง)
+  const dists = [...new Set(DB.recs.map(r => r.district.replace(/\s+/g, '')))].sort((a, b) => b.length - a.length);
+  for (const d of dists) s = s.split('เขต' + d).join('').split('อำเภอ' + d).join('');
+  return s.replace(/(แขวง|ตำบล|เขต|อำเภอ|จังหวัด|จ\.)/g, '');
+}
+// หาทุกตำแหน่งที่ชื่อ (หรือชื่อเดิมที่ถูกรวม) ปรากฏเป็นช่วงย่อยในสิ่งที่พูดมา (ยาว ≥3 ตัวอักษร กันจับคำสั้นเกินไปมั่ว)
+function scanVoiceMatches(T) {
+  const hits = [];
+  for (const r of DB.recs) {
+    for (const key of r.keys) {
+      if (key.length < 3) continue;
+      let i = -1;
+      while ((i = T.indexOf(key, i + 1)) !== -1) hits.push({ rec: r, key, idx: i, len: key.length });
+    }
+  }
+  return hits;
+}
+// รวมช่วงที่ตำแหน่งทับกันเป็น "จุดเดียวกัน" แล้วไล่เรียงตามลำดับที่พูดมาก่อน-หลัง
+// แต่ละจุดอาจมีได้มากกว่า 1 แขวงที่เข้าเกณฑ์ (ชื่อพ้อง/ใกล้เคียง) — ถือเป็นจุดที่ต้องถามยืนยัน
+function resolveVoiceSlots(hits) {
+  hits.sort((a, b) => a.idx - b.idx || b.len - a.len);
+  const merged = [];
+  for (const h of hits) {
+    const last = merged[merged.length - 1];
+    if (last && h.idx < last.end) { last.end = Math.max(last.end, h.idx + h.len); last.hits.push(h); }
+    else merged.push({ start: h.idx, end: h.idx + h.len, hits: [h] });
+  }
+  merged.forEach(g => {
+    const byRec = new Map();
+    for (const h of g.hits) { const cur = byRec.get(h.rec.id); if (!cur || h.len > cur.len) byRec.set(h.rec.id, h); }
+    g.candidates = [...byRec.values()].sort((a, b) => b.len - a.len || a.rec.name.localeCompare(b.rec.name, 'th'));
+  });
+  return merged;
+}
+// จุดเข้า: ประโยคที่พูดมา -> { origin, dest } แต่ละอันเป็น { status:'ok'|'ambiguous'|'unclear', rec?, candidates? }
+// ถ้าผู้พูดต่อท้ายด้วยชื่อเขต ("บางมด เขตทุ่งครุ") ใช้ช่วยตัดสินกรณีชื่อซ้ำคนละเขตให้อัตโนมัติ
+function scanDistrictHints(raw) {
+  const T = String(raw || '').replace(/(จุดรับ|จุดส่ง|ไปส่ง|ไปที่|รับที่|ส่งที่)/g, '').replace(/\s+/g, '');
+  const dists = [...new Set(DB.recs.map(r => r.district))];
+  const hits = [];
+  for (const d of dists) {
+    const dn = d.replace(/\s+/g, '');
+    for (const pfx of ['เขต', 'อำเภอ']) {
+      const needle = pfx + dn;
+      let i = -1;
+      while ((i = T.indexOf(needle, i + 1)) !== -1) hits.push({ district: d, idx: i });
+    }
+  }
+  return hits.sort((a, b) => a.idx - b.idx);
+}
+function parseVoicePair(raw) {
+  const T = prepTranscript(raw);
+  const groups = resolveVoiceSlots(scanVoiceMatches(T));
+  const hints = scanDistrictHints(raw);
+  let hi = 0;   // ผูก hint กับกลุ่มที่กำกวมตามลำดับที่พูดมา (จุดรับก่อน จุดส่งทีหลัง)
+  const toSlot = g => {
+    if (!g) return { status: 'unclear' };
+    if (g.candidates.length === 1) return { status: 'ok', rec: g.candidates[0].rec };
+    const distsHere = new Set(g.candidates.map(c => c.rec.district));
+    while (hi < hints.length && !distsHere.has(hints[hi].district)) hi++;
+    if (hi < hints.length) {
+      const pick = g.candidates.find(c => c.rec.district === hints[hi].district);
+      hi++;
+      if (pick) return { status: 'ok', rec: pick.rec };
+    }
+    return { status: 'ambiguous', candidates: g.candidates.map(c => c.rec) };
+  };
+  return { transcript: raw, origin: toSlot(groups[0]), dest: toSlot(groups[1]) };
+}
+
 /* ==CORE-END== ============================================================== */
 
 /* =====================================================================
@@ -790,6 +882,7 @@ async function boot() {
   });
 
   $('btn-go').addEventListener('click', calculate);
+  $('btn-mic').addEventListener('click', toggleVoice);
   $('btn-reset').addEventListener('click', resetAll);
   [$('in-o'), $('in-d')].forEach(i => i.addEventListener('keydown', e => {
     if (e.key === 'Enter' && $(i === $('in-o') ? 'sg-o' : 'sg-d').hidden) calculate();
@@ -1392,6 +1485,71 @@ function wireDirectory() {
   document.addEventListener('pointerdown', e => {          // แตะนอกช่อง = ปิดรายการ
     [ddProv, ddDist].forEach(d => { if (!d.box.contains(e.target)) d.hide(); });
   });
+}
+
+/* ---------- พูดจุดรับ-จุดส่งพร้อมกัน (Web Speech API — Chrome) ---------- */
+let recog = null, listening = false;
+function setMic(on) {
+  listening = on;
+  $('btn-mic').setAttribute('aria-pressed', String(on));
+  $('mic-txt').textContent = on ? 'กำลังฟัง… พูดจุดรับแล้วต่อด้วยจุดส่ง' : 'พูดจุดรับ-จุดส่งทีเดียว';
+}
+function toggleVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setStatus('เบราว์เซอร์นี้ไม่รองรับการพูด ใช้ Chrome', true); return; }
+  if (listening && recog) { recog.stop(); return; }
+  $('voice-box').hidden = true; setStatus('');
+  recog = new SR();
+  recog.lang = 'th-TH'; recog.interimResults = true; recog.continuous = false; recog.maxAlternatives = 1;
+  let finalText = '';
+  recog.onstart = () => setMic(true);
+  recog.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const tr = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += tr; else interim += tr;
+    }
+    setStatus('ได้ยิน: ' + (finalText + interim));
+  };
+  recog.onerror = e => {
+    const m = { 'not-allowed': 'ไม่ได้รับอนุญาตใช้ไมโครโฟน เปิดสิทธิ์ไมค์ให้เว็บนี้ใน Chrome แล้วลองใหม่',
+                'service-not-allowed': 'ไม่ได้รับอนุญาตใช้ไมโครโฟน เปิดสิทธิ์ไมค์ให้เว็บนี้ใน Chrome แล้วลองใหม่',
+                'no-speech': 'ไม่ได้ยินเสียง ลองกดแล้วพูดใหม่', 'audio-capture': 'ไม่พบไมโครโฟน',
+                'network': 'ต้องต่ออินเทอร์เน็ตเพื่อแปลงเสียง' }[e.error];
+    if (e.error !== 'aborted') setStatus(m || 'ใช้เสียงไม่ได้ (' + e.error + ')', true);
+  };
+  recog.onend = () => { setMic(false); if (finalText.trim()) applyVoice(finalText.trim()); };
+  try { recog.start(); } catch (err) { setStatus('เริ่มฟังไม่ได้ ลองใหม่อีกครั้ง', true); }
+}
+// ใส่ให้ทันทีเฉพาะจุดที่ชัด จุดที่กำกวม/ฟังไม่ชัด ถามยืนยันในกล่องเหลือง
+function applyVoice(text) {
+  const r = parseVoicePair(text);
+  if (r.origin.status === 'ok') pO.setRec(r.origin.rec);
+  if (r.dest.status === 'ok') pD.setRec(r.dest.rec);
+  renderVoiceBox(r);
+  if (r.origin.status === 'ok' && r.dest.status === 'ok') setStatus('ตั้งจากเสียงแล้ว ตรวจชื่อแล้วกดคำนวณเส้นทาง');
+  else setStatus('ได้ยิน: ' + text);
+}
+function renderVoiceBox(r) {
+  const box = $('voice-box');
+  const slots = [['origin', 'จุดรับ', pO], ['dest', 'จุดส่ง', pD]].filter(([k]) => r[k].status !== 'ok');
+  if (!slots.length) { box.hidden = true; return; }
+  box.innerHTML = `<div class="vheard">ได้ยิน: ${esc(r.transcript)}</div>` + slots.map(([k, label]) => {
+    const s = r[k];
+    return s.status === 'ambiguous'
+      ? `<div class="vslot"><b>${label}: หมายถึงอันไหน?</b><div class="vchips">${s.candidates.map(c =>
+          `<button class="vchip" type="button" data-k="${k}" data-c="${c.id}">${esc(c.name)}<small>${esc(c.sub)}</small></button>`).join('')}</div></div>`
+      : `<div class="vslot"><b>${label}</b><div class="vmsg">ฟังชื่อไม่ชัด — พิมพ์ในช่อง หรือกดไมค์พูดใหม่</div></div>`;
+  }).join('');
+  box.hidden = false;
+  box.onclick = e => {
+    const b = e.target.closest('.vchip'); if (!b) return;
+    const rec = DB.recs[+b.dataset.c];
+    (b.dataset.k === 'origin' ? pO : pD).setRec(rec);
+    r[b.dataset.k] = { status: 'ok', rec };
+    renderVoiceBox(r);
+    if (r.origin.status === 'ok' && r.dest.status === 'ok') setStatus('ตั้งจากเสียงแล้ว ตรวจชื่อแล้วกดคำนวณเส้นทาง');
+  };
 }
 
 window.__rider = { S, onFix, DB };
