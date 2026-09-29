@@ -53,15 +53,38 @@ button{cursor:pointer}
    3. SEARCH PANEL
    ===================================================================== */
 h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
-.titlerow{display:flex;align-items:baseline;gap:8px}
+.titlerow{display:flex;align-items:center;gap:8px}
+.tbtns{margin-left:auto;display:flex;gap:6px}
+.tbtn{min-height:44px;padding:0 12px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:14px;font-weight:700;
+  display:flex;align-items:center;gap:6px;color:var(--ink)}
+.tbtn:active{background:#eceff1}
+.tbtn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ver{flex:none;font-size:12px;font-weight:700;color:var(--ink-2);background:#eef1f3;border-radius:999px;padding:2px 9px}
 .tagline{margin:0;font-size:14px;color:var(--ink-2)}
 .fields{display:grid;grid-template-columns:1fr 48px;gap:8px;margin-top:10px}
 .fld{position:relative;min-width:0;display:flex;align-items:center;min-height:56px;border:2px solid var(--line);
   border-radius:12px;background:#f2f4f6}
 .fld:focus-within{border-color:var(--ink);background:#fff}
-.fld.o{grid-column:1;grid-row:1}
-.fld.d{grid-column:1;grid-row:2}
+.fields>.fld{grid-column:1}
+.nb{flex:none;width:26px;height:26px;margin-left:10px;border-radius:50%;display:grid;place-items:center;background:var(--route);
+  color:#fff;font-size:14px;font-weight:700;line-height:1}
+.nb.first{background:var(--green)}
+.nb.last{background:var(--red)}
+.side2{grid-column:2;grid-row:1 / 3;display:grid;grid-template-rows:1fr 1fr;gap:8px}
+.sbtn{position:relative;width:48px;padding:0;border:2px solid var(--line);border-radius:12px;background:#fff;display:grid;place-items:center}
+.sbtn:active{background:#dfe4e8}
+.sbtn svg{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sbtn .b2{position:absolute;right:2px;bottom:2px;min-width:18px;height:18px;border-radius:9px;background:var(--ink);color:#fff;
+  font-size:12px;font-weight:700;line-height:1;display:grid;place-items:center}
+.sbtn[aria-pressed="true"]{background:var(--red);border-color:var(--red);animation:micpulse 1.4s ease-in-out infinite}
+.sbtn[aria-pressed="true"] svg{stroke:#fff}
+.sbtn[aria-pressed="true"] .b2{background:#fff;color:var(--red)}
+@media (prefers-reduced-motion:reduce){.sbtn[aria-pressed="true"]{animation:none}}
+.delbtn{grid-column:2;width:48px;height:56px;padding:0;border:2px solid var(--line);border-radius:12px;background:#fff;display:grid;place-items:center}
+.delbtn:active{background:#dfe4e8}
+.delbtn svg{width:22px;height:22px;stroke:#767f86;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.addstop{grid-column:1;min-height:48px;border:2px dashed #aab3ba;border-radius:12px;background:transparent;font-size:16px;font-weight:700;color:var(--ink-2)}
+.addstop:active{background:#eceff1}
 .dot{flex:none;width:14px;height:14px;margin-left:14px;border-radius:50%;background:var(--green)}
 .dot.drop{border-radius:3px;background:var(--red)}
 .dot.chk{background:var(--amber);box-shadow:inset 0 0 0 2px var(--amber-ink)}
@@ -73,8 +96,13 @@ h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
 .ic.clr svg{stroke:#767f86}
 .ic.clr:active{background:#dfe4e8}
 .ic.side{grid-column:2;width:48px;height:56px;border:2px solid var(--line);background:#fff;border-radius:12px}
-.ic.loc{grid-row:1}
-.ic.swap{grid-row:2}
+.ic.swap{grid-row:1 / 3;height:auto}
+.fld .ic.clr{width:40px}
+.fld .ic.fmic{width:44px;height:44px;margin-right:4px}
+.fld .ic.fmic svg{width:22px;height:22px}
+.fmic[aria-pressed="true"]{background:var(--red);animation:micpulse 1.4s ease-in-out infinite}
+.fmic[aria-pressed="true"] svg{stroke:#fff}
+@media (prefers-reduced-motion:reduce){.fmic[aria-pressed="true"]{animation:none}}
 .go{width:100%;min-height:58px;margin-top:10px;border:0;border-radius:14px;background:var(--ink);color:#fff;
   font-size:20px;font-weight:700}
 .go:disabled{opacity:.55;cursor:progress}
@@ -106,6 +134,9 @@ h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
 .sg li b{font-size:20px;font-weight:600}
 .sg li span{font-size:15px;color:var(--ink-2)}
 .sg li.act,.sg li:hover{background:#e7eef9}
+.sg li.locitem{flex-direction:row;align-items:center;gap:10px;border-bottom:1px solid var(--line);border-radius:8px 8px 0 0}
+.sg li.locitem svg{flex:none;width:24px;height:24px;stroke:var(--green);fill:none;stroke-width:2.2;stroke-linecap:round}
+.sg li.locitem b{color:var(--green)}
 
 /* =====================================================================
    4. MAP OVERLAYS
@@ -128,6 +159,8 @@ h1{margin:0;font-size:22px;font-weight:700;letter-spacing:0}
 .pin .pb::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0}
 .pin.o .pb{background:var(--green)} .pin.o .pb::after{border-top-color:var(--green)}
 .pin.d .pb{background:var(--red)}   .pin.d .pb::after{border-top-color:var(--red)}
+.pin.m .pb{background:var(--route)} .pin.m .pb::after{border-top-color:var(--route)}
+.pin .pb{min-width:26px;text-align:center}
 .me{width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:#1a73e8;border:3px solid #fff;
   box-shadow:0 0 0 2px rgba(26,115,232,.35),0 1px 5px rgba(0,0,0,.4);animation:pulse 1.8s ease-out infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 2px rgba(26,115,232,.5),0 1px 5px rgba(0,0,0,.4)}
@@ -285,46 +318,31 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
   <header class="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.2</span>
+      <span class="ver">Ver.5</span>
+      <div class="tbtns">
+        <button class="tbtn" id="btn-db" type="button" aria-label="รายชื่อแขวง">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span>รายชื่อ</span>
+        </button>
+        <button class="tbtn" id="btn-reset" type="button" aria-label="รีเซ็ทเส้นทาง">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><span>รีเซ็ต</span>
+        </button>
+      </div>
     </div>
     <p class="tagline">ดูว่าเส้นทางผ่านแขวงไหนบ้าง ก่อนรับงานซ้อน</p>
 
-    <div class="fields">
-      <div class="fld o">
-        <span class="dot" aria-hidden="true"></span>
-        <input id="in-o" type="text" placeholder="จุดรับงาน เช่น ศิริราช" autocomplete="off" autocapitalize="off"
-               spellcheck="false" enterkeyhint="next" aria-label="จุดรับงานหลัก">
-        <button class="ic clr" id="clr-o" type="button" aria-label="ล้างจุดรับ" hidden>
-          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    <div class="fields" id="fields">
+      <button class="addstop" id="btn-add" type="button">＋ เพิ่มจุดที่ 3</button>
+      <div class="side2">
+        <button class="sbtn" id="btn-swap" type="button" aria-label="กลับลำดับจุดทั้งหมด">
+          <svg viewBox="0 0 24 24"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4"/></svg>
         </button>
-        <ul class="sg" id="sg-o" role="listbox" hidden></ul>
-      </div>
-      <div class="fld d">
-        <span class="dot drop" aria-hidden="true"></span>
-        <input id="in-d" type="text" placeholder="จุดส่งงาน เช่น บางมด" autocomplete="off" autocapitalize="off"
-               spellcheck="false" enterkeyhint="go" aria-label="จุดส่งงานหลัก">
-        <button class="ic clr" id="clr-d" type="button" aria-label="ล้างจุดส่ง" hidden>
-          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        <button class="sbtn" id="btn-mic" type="button" aria-pressed="false" aria-label="พูด 2 แขวงพร้อมกัน">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span class="b2" aria-hidden="true">2</span>
         </button>
-        <ul class="sg" id="sg-d" role="listbox" hidden></ul>
       </div>
-      <button class="ic side loc" id="btn-loc" type="button" aria-label="ใช้ตำแหน่งปัจจุบันเป็นจุดรับ">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-      </button>
-      <button class="ic side swap" id="btn-swap" type="button" aria-label="สลับจุดรับกับจุดส่ง">
-        <svg viewBox="0 0 24 24"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4"/></svg>
-      </button>
     </div>
-    <button class="mic" id="btn-mic" type="button" aria-pressed="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
-      <span id="mic-txt">พูดจุดรับ-จุดส่งทีเดียว</span>
-    </button>
     <div class="vbox" id="voice-box" hidden></div>
     <button class="go" id="btn-go" type="button">คำนวณเส้นทาง</button>
-    <div class="quick2">
-      <button class="qbtn" id="btn-db" type="button">รายชื่อแขวง</button>
-      <button class="qbtn" id="btn-reset" type="button">รีเซ็ทเส้นทาง</button>
-    </div>
     <p class="status" id="status" role="status" aria-live="polite"></p>
   </header>
 
@@ -339,7 +357,7 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
 
   <!-- ================== HTML STRUCTURE 3: ผลลัพธ์ ================== -->
   <main class="results" id="results">
-    <p class="empty" id="empty">พิมพ์ชื่อแขวงของจุดรับและจุดส่ง แล้วกดคำนวณเส้นทาง ระบบจะไล่แขวงที่ต้องขับผ่านตามลำดับให้</p>
+    <p class="empty" id="empty">ใส่แขวงของจุด 1 และจุด 2 (กด ＋ เพิ่มจุดได้) แล้วกดคำนวณเส้นทาง ระบบจะไล่แขวงที่ต้องขับผ่านตามลำดับให้</p>
 
     <div id="out" hidden>
       <p class="sum" id="sum"></p>
@@ -349,20 +367,6 @@ h2{margin:20px 0 10px;font-size:18px;font-weight:600}
         <button class="btn" id="btn-gps" type="button">เริ่มติดตาม GPS</button>
         <div class="gps-t" id="gps-t">เปิด GPS เพื่อให้แขวงที่ผ่านไปแล้วเป็นสีเทาอัตโนมัติ</div>
       </div>
-
-      <section class="check" aria-label="ปักหมุดงาน">
-        <label for="in-c">ปักหมุดงานที่แขวง… (เพิ่มได้หลายหมุด)</label>
-        <div class="fld">
-          <span class="dot chk" aria-hidden="true"></span>
-          <input id="in-c" type="text" placeholder="พิมพ์ชื่อแขวงจุดรับของงานที่เด้งเข้ามา" autocomplete="off"
-                 autocapitalize="off" spellcheck="false" aria-label="แขวงจุดรับของงานที่จะปักหมุด">
-          <button class="ic clr" id="clr-c" type="button" aria-label="ล้างช่องปักหมุด" hidden>
-            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
-          </button>
-          <ul class="sg" id="sg-c" role="listbox" hidden></ul>
-        </div>
-        <ul class="pins" id="pin-list"></ul>
-      </section>
 
       <h2>แขวงที่ต้องผ่าน</h2>
       <ol class="signs seq" id="list-main"></ol>
@@ -588,7 +592,7 @@ function nearestSample(samples, x, y) {
 }
 
 /* ---------- Spatial Intersection: เส้นทาง → แขวงที่ผ่านจริง ตามลำดับ ---------- */
-function extractMain(samples, originRec, destRec) {
+function extractMain(samples, stopList) {
   const runs = new Map();
   let lastId = -1, lastRec = null, prevKm = 0;
   for (const s of samples) {
@@ -604,9 +608,19 @@ function extractMain(samples, originRec, destRec) {
   }
   const total = samples[samples.length - 1].km;
   let arr = [...runs.values()].sort((a, b) => a.startKm - b.startKm);   // ลำดับ = ครั้งแรกที่เข้าแขวง
-  arr = arr.filter(x => x.lenKm >= CONFIG.MIN_MAIN_KM || x.rec === originRec || x.rec === destRec);
-  if (originRec && !arr.some(x => x.rec === originRec)) arr.unshift({ rec: originRec, startKm: 0, endKm: 0, lenKm: 0 });
-  if (destRec && !arr.some(x => x.rec === destRec)) arr.push({ rec: destRec, startKm: total, endKm: total, lenKm: 0 });
+  const keep = new Set(stopList.map(t => t.rec).filter(Boolean));
+  arr = arr.filter(x => x.lenKm >= CONFIG.MIN_MAIN_KM || keep.has(x.rec));
+  stopList.forEach((t, i) => {            // จุดที่ไม่ได้อยู่ในรายการ (เส้นทางเฉียดขอบแขวง) ใส่ให้ตามตำแหน่ง
+    if (!t.rec || arr.some(x => x.rec === t.rec)) return;
+    const mk = km => ({ rec: t.rec, startKm: km, endKm: km, lenKm: 0 });
+    if (i === 0) arr.unshift(mk(0));
+    else if (i === stopList.length - 1) arr.push(mk(total));
+    else {
+      const km = samples[nearestSample(samples, t.lng, t.lat).i].km;
+      let k = arr.findIndex(x => x.startKm > km); if (k < 0) k = arr.length;
+      arr.splice(k, 0, mk(km));
+    }
+  });
   arr.forEach((x, i) => { x.order = i + 1; });
   return arr;
 }
@@ -719,8 +733,8 @@ async function fetchJson(url, ms) {
 }
 
 // ลองตามลำดับ: (ทุกเซิร์ฟเวอร์ + exclude=motorway) แล้วค่อย (ทุกเซิร์ฟเวอร์ ไม่ exclude) เผื่อบางเซิร์ฟเวอร์ไม่รองรับ exclude
-async function fetchRoute(o, d, onTry) {
-  const xy = `${o.lng},${o.lat};${d.lng},${d.lat}`;
+async function fetchRoute(pts, onTry) {
+  const xy = pts.map(t => `${t.lng},${t.lat}`).join(';');
   let lastErr = new Error('ไม่พบเส้นทาง');
   for (const avoid of [true, false]) {
     for (const base of CONFIG.OSRM_SERVERS) {
@@ -753,11 +767,10 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', 
 /* ---------- state ---------- */
 const S = {
   route: null,        // { coords, samples, totalKm, avoided, motorway }
-  origin: null, dest: null,
+  stops: [], stopNos: new Map(),   // จุดที่คำนวณล่าสุด [{ no, lng, lat, rec }] / rec.id → เลขจุดที่อยู่ในแขวงนั้น
   main: [], mainOrder: new Map(),
   near: [], radius: CONFIG.BUFFER_KM,
-  hereOrder: 0, pendingOrd: 0, hereRec: null, progressKm: 0, tracking: false, simulating: false, follow: false,
-  pins: []             // งานที่ปักหมุดไว้เทียบกับเส้นทางปัจจุบัน: [{ id, rec, marker }]
+  hereOrder: 0, pendingOrd: 0, hereRec: null, progressKm: 0, tracking: false, simulating: false, follow: false
 };
 let map, gPoly, gLbl, gRoute, meMk, meAcc, pinO, pinD;
 const polyLayer = new Map(), lblLayer = new Map();
@@ -784,15 +797,16 @@ function browseAll() {
 }
 
 /* ---------- pickers (ช่องค้นหา + dropdown เลือกเขต + ปุ่มล้าง) ---------- */
-function makePicker(input, list, clearBtn, onChange) {
+function makePicker(input, list, clearBtn, onChange, extra) {
   let sel = null, items = [], act = -1;
   const hide = () => { list.hidden = true; act = -1; };
   const syncClr = () => { if (clearBtn) clearBtn.hidden = !input.value; };
   function show() {
     const q = sel ? '' : input.value.trim();                 // แตะช่องที่เลือกไว้แล้ว = เลือกใหม่จากรายการทั้งหมด
     items = q ? searchScored(q).slice(0, 8).map(x => x.r) : browseAll();
-    if (!items.length) { hide(); return; }
-    list.innerHTML = items.map((r, i) => `<li role="option" data-i="${i}"><b>${esc(r.name)}</b><span>${esc(r.sub)}</span></li>`).join('');
+    if (!items.length && !extra) { hide(); return; }
+    const head = extra ? `<li class="locitem" role="option" data-loc="1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><div><b>${esc(extra.label)}</b><span>${esc(extra.sub)}</span></div></li>` : '';
+    list.innerHTML = head + items.map((r, i) => `<li role="option" data-i="${i}"><b>${esc(r.name)}</b><span>${esc(r.sub)}</span></li>`).join('');
     list.hidden = false; act = -1;
     fitList();
   }
@@ -837,18 +851,23 @@ function makePicker(input, list, clearBtn, onChange) {
   input.addEventListener('keydown', e => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       if (list.hidden) show();
-      if (!items.length) return;
+      const total = items.length + (extra ? 1 : 0);
+      if (!total) return;
       e.preventDefault();
-      act = (act + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      act = (act + (e.key === 'ArrowDown' ? 1 : -1) + total) % total;
       [...list.children].forEach((li, i) => li.classList.toggle('act', i === act));
     } else if (e.key === 'Enter') {
-      if (!list.hidden && act >= 0) { e.preventDefault(); api.setRec(items[act]); }
+      if (!list.hidden && act >= 0) {
+        e.preventDefault();
+        if (extra && act === 0) { hide(); extra.run(); } else api.setRec(items[act - (extra ? 1 : 0)]);
+      }
     } else if (e.key === 'Escape') hide();
   });
   // เลือกตอน "แตะเสร็จ" (click) ไม่ใช่ตอนนิ้วแตะลง — ไม่งั้นเริ่มเลื่อนรายการก็ไปเลือกแขวงเลย
   list.addEventListener('mousedown', e => e.preventDefault());       // กัน input blur ก่อน click
   list.addEventListener('click', e => {
     const li = e.target.closest('li'); if (!li) return;
+    if (li.dataset.loc) { hide(); input.blur(); extra.run(); return; }
     api.setRec(items[+li.dataset.i]);
   });
   api.hide = hide; api.box = input.parentElement;
@@ -860,7 +879,59 @@ function makePicker(input, list, clearBtn, onChange) {
   return api;
 }
 
-let pO, pD, pC;
+/* ---------- จุด 1, 2, 3… (ช่อง 1-2 ลบไม่ได้ ช่องที่เพิ่มมาลบได้) ---------- */
+const MAXSTOPS = 10;
+const stops = [];   // [{ el, del, input, mic, p }]
+const stopFilled = st => !!(st.p.value || st.input.value.trim());
+function addStop() {
+  if (stops.length >= MAXSTOPS) return null;
+  const fields = $('fields'), add = $('btn-add'), first = stops.length === 0;
+  const el = document.createElement('div');
+  el.className = 'fld';
+  el.innerHTML = `<span class="nb" aria-hidden="true"></span>
+    <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+    <button class="ic clr" type="button" aria-label="ล้างช่องนี้" hidden><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <button class="ic fmic" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    <ul class="sg" role="listbox" hidden></ul>`;
+  fields.insertBefore(el, add);
+  const st = { el, del: null, input: el.querySelector('input'), mic: el.querySelector('.fmic') };
+  st.p = makePicker(st.input, el.querySelector('.sg'), el.querySelector('.clr'), null,
+    first ? { label: 'ตำแหน่งฉัน', sub: 'ใช้ GPS เป็นจุดที่ 1', run: () => useMyLocation() } : undefined);
+  st.mic.addEventListener('click', () => toggleVoice(st));
+  st.input.addEventListener('keydown', e => { if (e.key === 'Enter' && el.querySelector('.sg').hidden) calculate(); });
+  if (stops.length >= 2) {
+    const del = document.createElement('button');
+    del.className = 'delbtn'; del.type = 'button';
+    del.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
+    del.addEventListener('click', () => removeStop(st));
+    fields.insertBefore(del, add);
+    st.del = del;
+  }
+  stops.push(st);
+  renumber();
+  return st;
+}
+function removeStop(st) {
+  const i = stops.indexOf(st);
+  if (i < 2) return;                       // จุด 1-2 ลบไม่ได้
+  st.p.hide(); st.el.remove(); if (st.del) st.del.remove();
+  stops.splice(i, 1);
+  renumber();
+}
+function renumber() {
+  const n = stops.length;
+  stops.forEach((st, i) => {
+    st.el.style.gridRow = i + 1; if (st.del) st.del.style.gridRow = i + 1;
+    const nb = st.el.querySelector('.nb');
+    nb.textContent = i + 1; nb.className = 'nb ' + (i === 0 ? 'first' : i === n - 1 ? 'last' : '');
+    st.input.placeholder = i === 0 ? 'จุดที่ 1 เช่น ศิริราช' : i === 1 ? 'จุดที่ 2 เช่น บางมด' : 'จุดที่ ' + (i + 1);
+    st.input.setAttribute('aria-label', 'แขวงจุดที่ ' + (i + 1));
+    st.mic.setAttribute('aria-label', 'พูดชื่อแขวงจุดที่ ' + (i + 1));
+    if (st.del) st.del.setAttribute('aria-label', 'ลบจุดที่ ' + (i + 1));
+  });
+  const add = $('btn-add');
+  add.style.gridRow = n + 1; add.textContent = '＋ เพิ่มจุดที่ ' + (n + 1); add.hidden = n >= MAXSTOPS;
+}
 
 /* ---------- boot ---------- */
 async function boot() {
@@ -874,25 +945,21 @@ async function boot() {
   buildDirectory();
   wireDirectory();
 
-  pO = makePicker($('in-o'), $('sg-o'), $('clr-o'));
-  pD = makePicker($('in-d'), $('sg-d'), $('clr-d'));
-  pC = makePicker($('in-c'), $('sg-c'), $('clr-c'), sel => { if (sel && sel.rec) { addPin(sel.rec); pC.clear(); } });
+  addStop(); addStop();
   document.addEventListener('pointerdown', e => {          // แตะนอกช่อง = ปิดรายการ
-    [pO, pD, pC].forEach(p => { if (!p.box.contains(e.target)) p.hide(); });
+    stops.forEach(st => { if (!st.p.box.contains(e.target)) st.p.hide(); });
   });
 
   $('btn-go').addEventListener('click', calculate);
-  $('btn-mic').addEventListener('click', toggleVoice);
+  $('btn-mic').addEventListener('click', () => toggleVoice(null));
+  $('btn-add').addEventListener('click', () => { const st = addStop(); if (st) st.input.focus(); });
   $('btn-reset').addEventListener('click', resetAll);
-  [$('in-o'), $('in-d')].forEach(i => i.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && $(i === $('in-o') ? 'sg-o' : 'sg-d').hidden) calculate();
-  }));
-  $('btn-swap').addEventListener('click', () => {
-    const a = pO.value, b = pD.value, ta = $('in-o').value, tb = $('in-d').value;
-    if (b) pO.setPlace(b); else { pO.clear(); $('in-o').value = tb; }
-    if (a) pD.setPlace(a); else { pD.clear(); $('in-d').value = ta; }
+  $('btn-swap').addEventListener('click', () => {          // กลับลำดับทั้งหมด 1,2,3 → 3,2,1
+    const snap = stops.map(st => ({ sel: st.p.value, text: st.input.value })).reverse();
+    snap.forEach((v, i) => {
+      if (v.sel) stops[i].p.setPlace(v.sel); else { stops[i].p.clear(); stops[i].input.value = v.text; }
+    });
   });
-  $('btn-loc').addEventListener('click', useMyLocation);
   $('btn-gps').addEventListener('click', () => (S.tracking ? stopGPS() : startGPS()));
   $('btn-sim').addEventListener('click', () => (S.simulating ? stopSim() : startSim()));
   $('btn-fit').addEventListener('click', fitAll);
@@ -900,19 +967,18 @@ async function boot() {
   document.querySelectorAll('#radius-seg button').forEach(b => b.addEventListener('click', () => setRadius(+b.dataset.r)));
   $('list-main').addEventListener('click', cardClick);
   $('list-near').addEventListener('click', cardClick);
-  $('pin-list').addEventListener('click', e => {
-    const rm = e.target.closest('.prm');
-    if (rm) { removePin(+rm.dataset.id); return; }
-    const li = e.target.closest('.pin-row');
-    if (li) focusPinRow(+li.dataset.id);
-  });
   window.addEventListener('resize', () => map.invalidateSize());
 
-  try {   // จำจุดรับ/จุดส่งล่าสุด
+  try {   // จำจุดล่าสุด
     const last = JSON.parse(localStorage.getItem('rider.last') || 'null');
     if (last) {
-      const ro = DB.recs.find(r => r.code === last.o), rd = DB.recs.find(r => r.code === last.d);
-      if (ro) pO.setRec(ro); if (rd) pD.setRec(rd);
+      const codes = Array.isArray(last.s) ? last.s : [last.o, last.d];
+      codes.forEach((c, i) => {
+        const rec = c && DB.recs.find(r => r.code === c);
+        if (!rec) return;
+        while (stops.length <= i && addStop());
+        if (stops[i]) stops[i].p.setRec(rec);
+      });
     }
   } catch (e) { /* ไม่เป็นไร */ }
 }
@@ -948,9 +1014,10 @@ function drawRoute() {
   const ll = S.route.coords.map(c => [c[1], c[0]]);
   L.polyline(ll, { color: '#fff', weight: 9, opacity: .95, pane: 'routePane', smoothFactor: 1.5 }).addTo(gRoute);
   L.polyline(ll, { color: '#1746a2', weight: 5, pane: 'routePane', smoothFactor: 1.5 }).addTo(gRoute);
-  L.marker([S.origin.lat, S.origin.lng], { icon: pinIcon('o', 'รับ'), interactive: false, zIndexOffset: 500 }).addTo(gRoute);
-  const e = S.route.coords[S.route.coords.length - 1];
-  L.marker([e[1], e[0]], { icon: pinIcon('d', 'ส่ง'), interactive: false, zIndexOffset: 500 }).addTo(gRoute);
+  S.stops.forEach((t, i) => {
+    const kind = i === 0 ? 'o' : i === S.stops.length - 1 ? 'd' : 'm';
+    L.marker([t.lat, t.lng], { icon: pinIcon(kind, t.no), interactive: false, zIndexOffset: 500 + i }).addTo(gRoute);
+  });
 }
 function drawAreas() {
   gPoly.clearLayers(); gLbl.clearLayers(); polyLayer.clear(); lblLayer.clear();
@@ -1000,42 +1067,55 @@ async function useMyLocation() {
     catch (e2) { setStatus(await explainGeoError(e2), true); return; }
   }
   const lng = p.coords.longitude, lat = p.coords.latitude, rec = locate(lng, lat);
-  pO.setPlace({ rec, lng, lat, label: rec ? rec.label : 'ตำแหน่งปัจจุบัน (นอกพื้นที่ข้อมูล)' });
+  stops[0].p.setPlace({ rec, lng, lat, label: rec ? rec.label : 'ตำแหน่งปัจจุบัน (นอกพื้นที่ข้อมูล)' });
   setStatus(rec ? '' : 'ตำแหน่งนี้อยู่นอกพื้นที่ กทม.และปริมณฑล');
 }
 
 /* ---------- คำนวณเส้นทาง ---------- */
 async function calculate() {
   setStatus('');
-  const o = pO.resolve(), d = pD.resolve();
-  if (!o || o === 'ambiguous') { setStatus(o ? 'ชื่อจุดรับมีหลายเขต เลือกจากรายการก่อน' : 'ไม่พบชื่อแขวงจุดรับ ลองพิมพ์ใหม่', true); $('in-o').focus(); return; }
-  if (!d || d === 'ambiguous') { setStatus(d ? 'ชื่อจุดส่งมีหลายเขต เลือกจากรายการก่อน' : 'ไม่พบชื่อแขวงจุดส่ง ลองพิมพ์ใหม่', true); $('in-d').focus(); return; }
-  if (Math.abs(o.lng - d.lng) < 1e-5 && Math.abs(o.lat - d.lat) < 1e-5) { setStatus('จุดรับกับจุดส่งเป็นที่เดียวกัน', true); return; }
+  const pts = [];
+  for (let i = 0; i < stops.length; i++) {
+    const st = stops[i], txt = st.input.value.trim();
+    if (i >= 2 && !st.p.value && !txt) continue;            // ช่องเพิ่มที่ว่างอยู่ ข้ามไป
+    const pl = st.p.resolve();
+    if (!pl || pl === 'ambiguous') {
+      setStatus(pl ? `ชื่อจุดที่ ${i + 1} มีหลายเขต เลือกจากรายการก่อน` : txt ? `ไม่พบชื่อแขวงจุดที่ ${i + 1} ลองพิมพ์ใหม่` : `ใส่แขวงจุดที่ ${i + 1} ก่อน`, true);
+      st.input.focus(); return;
+    }
+    pts.push({ no: i + 1, lng: pl.lng, lat: pl.lat, rec: pl.rec });
+  }
+  for (let k = 1; k < pts.length; k++) {
+    if (Math.abs(pts[k].lng - pts[k - 1].lng) < 1e-5 && Math.abs(pts[k].lat - pts[k - 1].lat) < 1e-5) {
+      setStatus(`จุดที่ ${pts[k - 1].no} กับจุดที่ ${pts[k].no} เป็นที่เดียวกัน`, true); return;
+    }
+  }
 
   const btn = $('btn-go'); btn.disabled = true;
   setStatus('กำลังหาเส้นทางบนถนนจริง…');
   try {
-    const { route, avoided } = await fetchRoute(o, d, (avoid, base) => {
+    const { route, avoided } = await fetchRoute(pts, (avoid, base) => {
       if (base !== CONFIG.OSRM_SERVERS[0] || !avoid) setStatus(avoid ? 'กำลังลองเซิร์ฟเวอร์สำรอง…' : 'กำลังหาเส้นทางแบบไม่กรองทางด่วน…');
     });
-    S.origin = o; S.dest = d;
+    S.stops = pts;
+    S.stopNos = new Map();
+    pts.forEach(t => { if (t.rec) { const a = S.stopNos.get(t.rec.id) || []; a.push(t.no); S.stopNos.set(t.rec.id, a); } });
     const coords = route.geometry.coordinates;
     S.route = { coords, samples: buildSamples(coords), avoided, motorway: routeUsesMotorway(route) };
     S.route.totalKm = S.route.samples[S.route.samples.length - 1].km;
 
-    S.main = extractMain(S.route.samples, o.rec, d.rec);
+    S.main = extractMain(S.route.samples, S.stops);
     S.mainOrder = new Map(S.main.map(m => [m.rec.id, m.order]));
     S.radius = S.radius || CONFIG.BUFFER_KM;
     computeNearNow();
     resetTracking();
-    clearPins();
 
     drawRoute(); drawAreas(); renderLists(); applyStates();
     renderSummary();
     $('empty').hidden = true; $('out').hidden = false;
     map.invalidateSize(); fitAll();
     setStatus('');
-    try { localStorage.setItem('rider.last', JSON.stringify({ o: o.rec && o.rec.code, d: d.rec && d.rec.code })); } catch (e) { /* ignore */ }
+    try { localStorage.setItem('rider.last', JSON.stringify({ s: pts.map(t => t.rec && t.rec.code) })); } catch (e) { /* ignore */ }
     if (window.matchMedia('(max-width:899px)').matches) window.scrollTo({ top: 0 });
   } catch (e) {
     console.error(e);
@@ -1046,13 +1126,13 @@ async function calculate() {
 // "เริ่มงานใหม่" — ล้างทั้งช่องค้นหาและผลลัพธ์พร้อมกัน (ลบข้อความในช่องเฉยๆ ไม่ล้างผลลัพธ์ให้)
 function resetAll() {
   stopGPS(true); stopSim(true);
-  pO.clear(); pD.clear(); pC.clear();
-  S.route = null; S.origin = null; S.dest = null; S.main = []; S.near = []; S.mainOrder = new Map();
+  while (stops.length > 2) removeStop(stops[stops.length - 1]);
+  stops.forEach(st => st.p.clear());
+  S.route = null; S.stops = []; S.stopNos = new Map(); S.main = []; S.near = []; S.mainOrder = new Map();
   resetTracking();
   gRoute.clearLayers(); gPoly.clearLayers(); gLbl.clearLayers(); polyLayer.clear(); lblLayer.clear();
   if (meMk) { map.removeLayer(meMk); map.removeLayer(meAcc); meMk = null; meAcc = null; }
   if (dbPreview) { map.removeLayer(dbPreview.poly); map.removeLayer(dbPreview.lbl); dbPreview = null; }
-  clearPins();
   $('out').hidden = true; $('empty').hidden = false;
   setStatus('');
   try { localStorage.removeItem('rider.last'); } catch (e) { /* ignore */ }
@@ -1069,12 +1149,12 @@ function setRadius(r) {
   S.radius = r;
   document.querySelectorAll('#radius-seg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.r === r)));
   if (!S.route) return;
-  computeNearNow(); drawAreas(); renderLists(); applyStates(); refreshPins();
+  computeNearNow(); drawAreas(); renderLists(); applyStates();
 }
 
 function renderSummary() {
   const n = S.main.length;
-  $('sum').innerHTML = `<b>${S.route.totalKm.toFixed(1)}</b> กม. ผ่าน <b>${n}</b> แขวง`;
+  $('sum').innerHTML = `<b>${S.route.totalKm.toFixed(1)}</b> กม. ผ่าน <b>${n}</b> แขวง · <b>${S.stops.length}</b> จุด`;
   const w = $('warn');
   if (S.route.avoided) w.hidden = true;
   else {
@@ -1089,12 +1169,12 @@ function renderSummary() {
 function renderLists() {
   const om = $('list-main'), on = $('list-near');
   om.innerHTML = S.main.map(m => {
-    const role = m.order === 1 ? 'จุดรับ' : m.order === S.main.length ? 'จุดส่ง' : '';
+    const nos = S.stopNos.get(m.rec.id), role = nos ? nos.map(k => 'จุด ' + k).join(' · ') : '';
     return `<li class="sign main" data-id="${m.rec.id}" data-kind="main" tabindex="0">
       <span class="no">${m.order}</span>
       <div><span class="nm">${esc(m.rec.name)}</span><span class="ds">${esc(m.rec.sub)}</span></div>
       <div class="km"><div class="tags"><span class="tag role">${role}</span><span class="tag st"></span></div>
-        ${m.order === 1 ? '' : `${m.startKm.toFixed(1)} กม.<small>จากจุดรับ</small>`}</div></li>`;
+        ${m.order === 1 ? '' : `${m.startKm.toFixed(1)} กม.<small>จากจุดที่ 1</small>`}</div></li>`;
   }).join('');
   on.innerHTML = S.near.length ? S.near.map(n =>
     `<li class="sign near" data-id="${n.rec.id}" data-kind="near" tabindex="0">
@@ -1133,7 +1213,6 @@ function applyStates() {
   };
   S.main.forEach(m => each(m.rec, stateMain(m), 'main'));
   S.near.forEach(n => each(n.rec, stateNear(n), 'near'));
-  refreshPins();
 }
 
 function resetTracking() { S.hereOrder = 0; S.pendingOrd = 0; S.hereRec = null; S.progressKm = 0; }
@@ -1224,70 +1303,6 @@ function stopSim(keepState) {
   S.simulating = false; setFollow(false);
   $('btn-sim').textContent = 'ลองจำลองการขับ';
   if (!keepState) { resetTracking(); applyStates(); setGpsText('เปิด GPS เพื่อให้แขวงที่ผ่านไปแล้วเป็นสีเทาอัตโนมัติ'); }
-}
-
-/* ---------- เช็คงานซ้อน ---------- */
-/* ---------- ปักหมุดงาน: เทียบตำแหน่งงานที่เด้งเข้ามากับเส้นทาง/ตำแหน่งปัจจุบัน ---------- */
-function pinStatus(rec) {
-  const m = S.main.find(x => x.rec.id === rec.id);
-  if (m) return stateMain(m) === 'passed' ? 'passed' : 'main';
-  const n = S.near.find(x => x.rec.id === rec.id);
-  if (n) return stateNear(n) === 'passed' ? 'passed' : 'near';
-  return 'out';
-}
-function pinSub(rec, cls) {
-  if (cls === 'main') {
-    const m = S.main.find(x => x.rec.id === rec.id);
-    let s = `ลำดับที่ ${m.order} จาก ${S.main.length}`;
-    if (S.hereOrder && stateMain(m) !== 'passed') s += ` · อีก ${Math.max(0, m.startKm - S.progressKm).toFixed(1)} กม.`;
-    return s;
-  }
-  if (cls === 'near') { const n = S.near.find(x => x.rec.id === rec.id); return `รัศมี ${S.radius} กม. · ช่วง กม.ที่ ${n.alongKm.toFixed(0)}`; }
-  if (cls === 'passed') return 'อยู่หลังตำแหน่งปัจจุบันแล้ว';
-  return `เกินรัศมี ${S.radius} กม. จากเส้นทาง`;
-}
-// หมุดบนแผนที่ใช้สีเดียวกันหมด (เด่นชัด ไม่อิงโซน) — ใส่แค่เลขลำดับกำกับให้ตรงกับรายการด้านล่าง
-function jobPinIcon(seq) {
-  return L.divIcon({ className: 'jobpin', html: `<div class="jp"><span>${seq}</span></div>`, iconSize: [0, 0] });
-}
-function addPin(rec) {
-  if (S.pins.some(p => p.id === rec.id)) { focusPinRow(rec.id); return; }
-  S.pins.push({ id: rec.id, rec, marker: null });
-  refreshPins();
-}
-function removePin(id) {
-  const p = S.pins.find(x => x.id === id);
-  if (p && p.marker) map.removeLayer(p.marker);
-  S.pins = S.pins.filter(x => x.id !== id);
-  refreshPins();
-}
-function clearPins() { S.pins.forEach(p => { if (p.marker) map.removeLayer(p.marker); }); S.pins = []; renderPins(); }
-function renderPins() {
-  const ul = $('pin-list');
-  ul.innerHTML = S.pins.map((p, i) => {
-    const cls = S.route ? pinStatus(p.rec) : 'out', sub = S.route ? pinSub(p.rec, cls) : 'ยังไม่ได้คำนวณเส้นทาง';
-    return `<li class="pin-row" data-id="${p.id}">
-      <span class="pdot ${cls}">${i + 1}</span>
-      <div class="ptxt"><span class="pn">${esc(p.rec.name)}</span><span class="ps">${esc(sub)}</span></div>
-      <button class="prm" data-id="${p.id}" type="button">ลบ</button>
-    </li>`;
-  }).join('');
-}
-function updatePinMarkers() {
-  S.pins.forEach((p, i) => {
-    const rp = repOf(p.rec);
-    if (!p.marker) {
-      p.marker = L.marker([rp[1], rp[0]], { icon: jobPinIcon(i + 1), zIndexOffset: 800 }).addTo(map);
-      p.marker.on('click', () => focusPinRow(p.id));
-    } else p.marker.setIcon(jobPinIcon(i + 1));
-  });
-}
-function refreshPins() { renderPins(); updatePinMarkers(); }
-function focusPinRow(id) {
-  const li = document.querySelector(`.pin-row[data-id="${id}"]`);
-  if (li) li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  const p = S.pins.find(x => x.id === id);
-  if (p && p.marker) map.panTo(p.marker.getLatLng());
 }
 
 /* ---- hook สำหรับทดสอบ ---- */
@@ -1489,20 +1504,25 @@ function wireDirectory() {
 
 /* ---------- พูดจุดรับ-จุดส่งพร้อมกัน (Web Speech API — Chrome) ---------- */
 let recog = null, listening = false;
-function setMic(on) {
+// target: null = ปุ่ม "2" (พูดสองแขวงต่อกัน ใส่ช่องว่างก่อน หมดแล้วเพิ่มจุดใหม่) | stop = ไมค์ในช่อง (แขวงเดียวใส่ช่องนั้น)
+function setMic(on, target) {
   listening = on;
-  $('btn-mic').setAttribute('aria-pressed', String(on));
-  $('mic-txt').textContent = on ? 'กำลังฟัง… พูดจุดรับแล้วต่อด้วยจุดส่ง' : 'พูดจุดรับ-จุดส่งทีเดียว';
+  $('btn-mic').setAttribute('aria-pressed', String(on && !target));
+  stops.forEach(st => st.mic.setAttribute('aria-pressed', String(on && target === st)));
 }
-function toggleVoice() {
+function toggleVoice(target) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { setStatus('เบราว์เซอร์นี้ไม่รองรับการพูด ใช้ Chrome', true); return; }
   if (listening && recog) { recog.stop(); return; }
   $('voice-box').hidden = true; setStatus('');
+  stops.forEach(st => st.p.hide());
   recog = new SR();
   recog.lang = 'th-TH'; recog.interimResults = true; recog.continuous = false; recog.maxAlternatives = 1;
-  let finalText = '';
-  recog.onstart = () => setMic(true);
+  let finalText = '', failed = false;
+  recog.onstart = () => {
+    setMic(true, target);
+    setStatus(target ? `กำลังฟัง… พูดชื่อแขวงจุดที่ ${stops.indexOf(target) + 1}` : 'กำลังฟัง… พูดแขวงแรกแล้วต่อด้วยแขวงที่สอง');
+  };
   recog.onresult = e => {
     let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -1516,39 +1536,53 @@ function toggleVoice() {
                 'service-not-allowed': 'ไม่ได้รับอนุญาตใช้ไมโครโฟน เปิดสิทธิ์ไมค์ให้เว็บนี้ใน Chrome แล้วลองใหม่',
                 'no-speech': 'ไม่ได้ยินเสียง ลองกดแล้วพูดใหม่', 'audio-capture': 'ไม่พบไมโครโฟน',
                 'network': 'ต้องต่ออินเทอร์เน็ตเพื่อแปลงเสียง' }[e.error];
-    if (e.error !== 'aborted') setStatus(m || 'ใช้เสียงไม่ได้ (' + e.error + ')', true);
+    if (e.error !== 'aborted') { failed = true; setStatus(m || 'ใช้เสียงไม่ได้ (' + e.error + ')', true); }
   };
-  recog.onend = () => { setMic(false); if (finalText.trim()) applyVoice(finalText.trim()); };
+  recog.onend = () => {
+    setMic(false);
+    if (finalText.trim()) applyVoice(finalText.trim(), target);
+    else if (!failed) setStatus('');
+  };
   try { recog.start(); } catch (err) { setStatus('เริ่มฟังไม่ได้ ลองใหม่อีกครั้ง', true); }
 }
-// ใส่ให้ทันทีเฉพาะจุดที่ชัด จุดที่กำกวม/ฟังไม่ชัด ถามยืนยันในกล่องเหลือง
-function applyVoice(text) {
-  const r = parseVoicePair(text);
-  if (r.origin.status === 'ok') pO.setRec(r.origin.rec);
-  if (r.dest.status === 'ok') pD.setRec(r.dest.rec);
+// ช่องว่างมาก่อน ถ้าไม่พอค่อยเพิ่มจุดใหม่ต่อท้าย (จุด 1-2 ยังอยู่ → พูดรอบหน้าเป็นจุด 3-4)
+function takeTargets(n) {
+  const free = stops.filter(st => !stopFilled(st));
+  while (free.length < n) { const st = addStop(); if (!st) break; free.push(st); }
+  return free.slice(0, n);
+}
+const voiceAllOk = r => r.slots.every(sl => sl && sl.status === 'ok');
+function applyVoice(text, target) {
+  if (target && !stops.includes(target)) return;
+  const pr = parseVoicePair(text);
+  const tg = target ? [target] : takeTargets(2);
+  const slots = (target ? [pr.origin] : [pr.origin, pr.dest]).slice(0, tg.length);
+  const r = { transcript: text, slots, tg };
+  slots.forEach((sl, i) => { if (sl && sl.status === 'ok') tg[i].p.setRec(sl.rec); });
   renderVoiceBox(r);
-  if (r.origin.status === 'ok' && r.dest.status === 'ok') setStatus('ตั้งจากเสียงแล้ว ตรวจชื่อแล้วกดคำนวณเส้นทาง');
+  if (voiceAllOk(r)) setStatus(target ? 'ตั้งจากเสียงแล้ว' : 'ตั้งจากเสียงแล้ว ตรวจชื่อแล้วกดคำนวณเส้นทาง');
   else setStatus('ได้ยิน: ' + text);
 }
 function renderVoiceBox(r) {
   const box = $('voice-box');
-  const slots = [['origin', 'จุดรับ', pO], ['dest', 'จุดส่ง', pD]].filter(([k]) => r[k].status !== 'ok');
-  if (!slots.length) { box.hidden = true; return; }
-  box.innerHTML = `<div class="vheard">ได้ยิน: ${esc(r.transcript)}</div>` + slots.map(([k, label]) => {
-    const s = r[k];
-    return s.status === 'ambiguous'
-      ? `<div class="vslot"><b>${label}: หมายถึงอันไหน?</b><div class="vchips">${s.candidates.map(c =>
-          `<button class="vchip" type="button" data-k="${k}" data-c="${c.id}">${esc(c.name)}<small>${esc(c.sub)}</small></button>`).join('')}</div></div>`
+  const bad = r.slots.map((sl, i) => [sl || { status: 'unclear' }, i]).filter(([sl, i]) => sl.status !== 'ok' && stops.includes(r.tg[i]));
+  if (!bad.length) { box.hidden = true; return; }
+  box.innerHTML = `<div class="vheard">ได้ยิน: ${esc(r.transcript)}</div>` + bad.map(([sl, i]) => {
+    const label = 'จุดที่ ' + (stops.indexOf(r.tg[i]) + 1);
+    return sl.status === 'ambiguous'
+      ? `<div class="vslot"><b>${label}: หมายถึงอันไหน?</b><div class="vchips">${sl.candidates.map(c =>
+          `<button class="vchip" type="button" data-k="${i}" data-c="${c.id}">${esc(c.name)}<small>${esc(c.sub)}</small></button>`).join('')}</div></div>`
       : `<div class="vslot"><b>${label}</b><div class="vmsg">ฟังชื่อไม่ชัด — พิมพ์ในช่อง หรือกดไมค์พูดใหม่</div></div>`;
   }).join('');
   box.hidden = false;
   box.onclick = e => {
     const b = e.target.closest('.vchip'); if (!b) return;
-    const rec = DB.recs[+b.dataset.c];
-    (b.dataset.k === 'origin' ? pO : pD).setRec(rec);
-    r[b.dataset.k] = { status: 'ok', rec };
+    const i = +b.dataset.k, rec = DB.recs[+b.dataset.c];
+    if (!stops.includes(r.tg[i])) return;
+    r.tg[i].p.setRec(rec);
+    r.slots[i] = { status: 'ok', rec };
     renderVoiceBox(r);
-    if (r.origin.status === 'ok' && r.dest.status === 'ok') setStatus('ตั้งจากเสียงแล้ว ตรวจชื่อแล้วกดคำนวณเส้นทาง');
+    if (voiceAllOk(r)) setStatus(r.tg.length > 1 ? 'ตั้งจากเสียงแล้ว ตรวจชื่อแล้วกดคำนวณเส้นทาง' : 'ตั้งจากเสียงแล้ว');
   };
 }
 
