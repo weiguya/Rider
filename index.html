@@ -178,6 +178,10 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .empty{margin:6px 2px;font-size:14.5px;color:var(--ink-2)}
 .cols3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px;align-items:start}
 .cols3>div{min-width:0}
+.savebtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;margin:0 0 14px;border:0;border-radius:12px;background:var(--ink);color:#fff;font-size:15.5px;font-weight:700}
+.savebtn:active{background:#000}
+.savebtn:disabled{opacity:.6}
+.savebtn svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .sum{margin:0 0 8px;font-size:16px;font-weight:500}
 .sum b{font-weight:700;font-size:20px}
 .warn{margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff1cc;border:2px solid var(--amber-ink);
@@ -319,7 +323,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.8</span>
+      <span class="ver">Ver.9</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-db" type="button" aria-label="รายชื่อแขวง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span>รายชื่อ</span>
@@ -368,6 +372,10 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
         <button class="btn" id="btn-gps" type="button">เริ่มติดตาม GPS</button>
         <div class="gps-t" id="gps-t">เปิด GPS เพื่อให้แขวงที่ผ่านไปแล้วเป็นสีเทาอัตโนมัติ</div>
       </div>
+
+      <button class="savebtn" id="btn-img" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>บันทึกแขวงเป็นรูปภาพ
+      </button>
 
       <div class="cols3">
         <div>
@@ -981,6 +989,7 @@ async function boot() {
     });
   });
   $('btn-gps').addEventListener('click', () => (S.tracking ? stopGPS() : startGPS()));
+  $('btn-img').addEventListener('click', saveImage);
   $('btn-sim').addEventListener('click', () => (S.simulating ? stopSim() : startSim()));
   $('btn-fit').addEventListener('click', fitAll);
   $('btn-follow').addEventListener('click', () => setFollow(!S.follow));
@@ -1265,6 +1274,123 @@ function focusMap(id) {
 function focusCard(id) {
   const li = document.querySelector(`.crow[data-id="${id}"]`);
   if (li) li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+
+/* ---------- บันทึกแขวงที่แสดงเป็นรูปภาพ (วาดด้วย canvas ไม่พึ่งไลบรารี) ---------- */
+async function saveImage() {
+  if (!S.route) return;
+  const btn = $('btn-img'); btn.disabled = true;
+  try {
+    const FONT = "Prompt,'Noto Sans Thai',Sarabun,system-ui,sans-serif";
+    try { await Promise.all([document.fonts.load('600 26px Prompt'), document.fonts.load('700 26px Prompt')]); } catch (e) { /* ใช้ฟอนต์สำรอง */ }
+    const W = 1080, PAD = 40, GAP = 24, CW = (W - PAD * 2 - GAP) / 2, RH = 54, RG = 8, SC = 2;
+    const C = { ink: '#1b2025', ink2: '#4b545b', green: '#0b6b3a', amber: '#f2c12e', amberInk: '#2b2200',
+      grey: '#c3c8c5', greyInk: '#5d645f', route: '#1746a2', red: '#c8321f', line: '#cdd3d8' };
+    const font = (w, px) => `${w} ${px}px ${FONT}`;
+    const meas = document.createElement('canvas').getContext('2d');
+    const fit = (ctx, t, maxW) => {            // ตัดข้อความให้พอดีกว้าง ใส่ … ท้าย
+      if (ctx.measureText(t).width <= maxW) return t;
+      let a = Array.from(t); while (a.length > 1 && ctx.measureText(a.join('') + '…').width > maxW) a.pop();
+      return a.join('') + '…';
+    };
+    const stopClr = i => i === 0 ? C.green : i === 1 ? C.red : C.route;   // ล็อกสีตามลำดับจุด
+
+    const mainRows = S.main.map(m => ({ k: 'main', st: stateMain(m) === 'passed' ? 'passed' : 'ahead',
+      no: (S.stopNos.get(m.rec.id) || [m.order]).join('/'), name: m.rec.name, km: m.order === 1 ? '' : m.startKm.toFixed(1) + ' กม.' }));
+    const nearRows = S.near.map(n => ({ k: 'near', st: stateNear(n) === 'passed' ? 'passed' : 'ahead', no: '', name: n.rec.name, km: 'กม.' + n.alongKm.toFixed(0) }));
+    const fwdRows = S.forward.map(f => ({ k: 'fwd', st: 'ahead', no: '', name: f.rec.name, km: f.distKm.toFixed(1) + ' กม.' }));
+
+    // ---- คำนวณความสูง ----
+    const stopName = (t, i) => t.rec ? t.rec.name : (i === 0 ? 'ตำแหน่งฉัน' : 'จุดที่ ' + t.no);
+    meas.font = font(600, 28);
+    const chips = S.stops.map((t, i) => ({ i, no: t.no, name: stopName(t, i), w: 44 + meas.measureText(stopName(t, i)).width + 22 }));
+    const flow = []; { let x = 0, y = 0; const ROW = 56;
+      chips.forEach((c, idx) => { const need = c.w + (idx ? 34 : 0);
+        if (x + need > W - PAD * 2 && x > 0) { x = 0; y += ROW; }
+        flow.push({ c, x: PAD + x + (idx && x > 0 ? 34 : 0), y }); x += need; }); flow.h = y + 44; }
+    const HEAD = 96, SUM = 62, SEC = 62, HINT = 0;
+    const colH = rows => rows.length ? rows.length * (RH + RG) : 56;
+    const leftH = SEC + colH(mainRows) + 18 + SEC + 30 + colH(fwdRows);
+    const rightH = SEC + 30 + colH(nearRows);
+    const H = HEAD + 24 + flow.h + 18 + SUM + 10 + Math.max(leftH, rightH) + 56;
+
+    const cv = document.createElement('canvas'); cv.width = W * SC; cv.height = H * SC;
+    const g = cv.getContext('2d'); g.scale(SC, SC); g.textBaseline = 'middle';
+    const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); };
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+
+    // ---- หัว ----
+    g.fillStyle = C.ink; g.fillRect(0, 0, W, HEAD);
+    g.fillStyle = '#fff'; g.font = font(700, 40); g.textAlign = 'left'; g.fillText('ไล่แขวง', PAD, HEAD / 2);
+    const d = new Date(), pad2 = n => String(n).padStart(2, '0');
+    const stamp = `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear() + 543}  ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    g.font = font(500, 24); g.fillStyle = '#c9d0d6'; g.textAlign = 'right'; g.fillText(stamp, W - PAD, HEAD / 2);
+    g.textAlign = 'left';
+
+    // ---- จุดเดินทาง (สีล็อกตามลำดับ) ----
+    let y0 = HEAD + 24;
+    flow.forEach((f, idx) => {
+      const cy = y0 + f.y + 22;
+      if (idx && f.y === flow[idx - 1].y) { g.fillStyle = C.ink2; g.font = font(600, 26); g.fillText('›', f.x - 24, cy - 1); }
+      g.fillStyle = stopClr(f.c.i); g.beginPath(); g.arc(f.x + 20, cy, 20, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#fff'; g.font = font(700, 22); g.textAlign = 'center'; g.fillText(String(f.c.no), f.x + 20, cy + 1); g.textAlign = 'left';
+      g.fillStyle = C.ink; g.font = font(600, 28); g.fillText(f.c.name, f.x + 48, cy);
+    });
+    let y = y0 + flow.h + 18;
+
+    // ---- สรุป ----
+    g.fillStyle = '#eef1f3'; rr(PAD, y, W - PAD * 2, SUM, 14); g.fill();
+    g.fillStyle = C.ink; g.font = font(500, 28); g.textAlign = 'center';
+    g.fillText(`${S.route.totalKm.toFixed(1)} กม.  ·  ผ่าน ${S.main.length} แขวง  ·  ${S.stops.length} จุด`, W / 2, y + SUM / 2 + 1);
+    g.textAlign = 'left'; y += SUM + 10;
+
+    // ---- คอลัมน์ ----
+    const heading = (x, yy, t, clr) => { g.fillStyle = clr; g.fillRect(x, yy + 14, 8, 30); g.fillStyle = C.ink; g.font = font(700, 30); g.fillText(t, x + 20, yy + 30); };
+    const note = (x, yy, t) => { g.fillStyle = C.ink2; g.font = font(500, 22); g.fillText(t, x + 20, yy); };
+    const drawRows = (x, yy, rows, emptyTxt) => {
+      if (!rows.length) { g.fillStyle = C.ink2; g.font = font(500, 24); g.fillText(emptyTxt, x + 8, yy + 26); return; }
+      rows.forEach((r, i) => {
+        const ry = yy + i * (RH + RG), passed = r.st === 'passed';
+        let bg, fg;
+        if (passed) { bg = C.grey; fg = C.greyInk; }
+        else if (r.k === 'main') { bg = C.green; fg = '#fff'; }
+        else if (r.k === 'near') { bg = C.amber; fg = C.amberInk; }
+        else { bg = '#eef1f3'; fg = C.ink; }
+        g.fillStyle = bg; rr(x, ry, CW, RH, 10); g.fill();
+        if (r.k === 'fwd') { g.save(); g.strokeStyle = '#aab3ba'; g.lineWidth = 2; g.setLineDash([8, 6]); rr(x + 1, ry + 1, CW - 2, RH - 2, 10); g.stroke(); g.restore(); }
+        let tx = x + 16;
+        if (r.no) {
+          g.font = font(700, 22); const nw = Math.max(34, g.measureText(r.no).width + 16);
+          g.fillStyle = passed ? '#eef0ee' : 'rgba(255,255,255,.9)'; rr(tx, ry + (RH - 34) / 2, nw, 34, 8); g.fill();
+          g.fillStyle = passed ? C.greyInk : C.green; g.textAlign = 'center'; g.fillText(r.no, tx + nw / 2, ry + RH / 2 + 1); g.textAlign = 'left';
+          tx += nw + 12;
+        }
+        g.font = font(500, 22); const kw = r.km ? g.measureText(r.km).width : 0;
+        g.font = font(600, 27); g.fillStyle = fg; g.fillText(fit(g, r.name, CW - (tx - x) - 16 - (kw ? kw + 12 : 0)), tx, ry + RH / 2 + 1);
+        if (kw) { g.font = font(500, 22); g.textAlign = 'right'; g.globalAlpha = .9; g.fillText(r.km, x + CW - 16, ry + RH / 2 + 1); g.globalAlpha = 1; g.textAlign = 'left'; }
+      });
+    };
+    const LX = PAD, RX = PAD + CW + GAP;
+    let ly = y; heading(LX, ly, `ทางผ่าน (${mainRows.length})`, C.green); ly += SEC; drawRows(LX, ly, mainRows, 'ไม่มี'); ly += colH(mainRows) + 18;
+    heading(LX, ly, `ไปต่อ (${fwdRows.length})`, '#aab3ba'); note(LX, ly + 58, 'ทางเดียวกัน ต่อจากจุดสุดท้าย'); ly += SEC + 30; drawRows(LX, ly, fwdRows, 'ไม่มีแขวงต่อในทิศทางนี้');
+    let ry2 = y; heading(RX, ry2, `ใกล้เคียง (${nearRows.length})`, C.amber); note(RX, ry2 + 58, `รัศมี ${S.radius} กม. จากเส้นทาง`); ry2 += SEC + 30; drawRows(RX, ry2, nearRows, 'ไม่มีแขวงอื่นในรัศมีนี้');
+
+    // ---- ท้ายภาพ ----
+    g.fillStyle = C.ink2; g.font = font(500, 20); g.textAlign = 'center';
+    g.fillText('เส้นทางประมาณการจาก OSRM ไม่ใช่เส้นที่แอปรับงานนำทางจริง', W / 2, H - 28);
+
+    const blob = await new Promise(ok => cv.toBlob(ok, 'image/png'));
+    if (!blob) throw new Error('toBlob');
+    const nm = t => String(t).replace(/[\\/:*?"<>|\s]+/g, '');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ไล่แขวง_${nm(stopName(S.stops[0], 0))}-${nm(stopName(S.stops[S.stops.length - 1], S.stops.length - 1))}_${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    setStatus('บันทึกรูปแล้ว');
+  } catch (e) { console.error('บันทึกรูปไม่สำเร็จ', e); setStatus('บันทึกรูปไม่สำเร็จ', true); }
+  finally { btn.disabled = false; }
 }
 
 /* ---------- 4. GPS Tracking & Dimming Logic ---------- */
