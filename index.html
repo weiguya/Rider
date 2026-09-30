@@ -176,10 +176,8 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
    5. RESULTS: สรุป, GPS, เช็คงานซ้อน, การ์ดป้ายแขวง
    ===================================================================== */
 .empty{margin:6px 2px;font-size:14.5px;color:var(--ink-2)}
-.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 10px;align-items:start}
+.cols3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px;align-items:start}
 .cols3>div{min-width:0}
-.cols3 .clist{max-height:34vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-@media (min-width:560px){.cols3 .clist{max-height:44vh}}
 .sum{margin:0 0 8px;font-size:16px;font-weight:500}
 .sum b{font-weight:700;font-size:20px}
 .warn{margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff1cc;border:2px solid var(--amber-ink);
@@ -321,7 +319,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.7</span>
+      <span class="ver">Ver.8</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-db" type="button" aria-label="รายชื่อแขวง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span>รายชื่อ</span>
@@ -375,6 +373,9 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
         <div>
           <h2>ทางผ่าน</h2>
           <ol class="clist" id="list-main"></ol>
+          <h2>ไปต่อ</h2>
+          <p class="hint">ทางเดียวกัน</p>
+          <ol class="clist" id="list-forward"></ol>
         </div>
         <div>
           <div class="h2row">
@@ -386,11 +387,6 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
             <button type="button" data-r="2" aria-pressed="false">2กม.</button>
           </div>
           <ol class="clist" id="list-near"></ol>
-        </div>
-        <div>
-          <h2>ไปต่อ</h2>
-          <p class="hint">ทางเดียวกัน</p>
-          <ol class="clist" id="list-forward"></ol>
         </div>
       </div>
     </div>
@@ -947,7 +943,7 @@ function renumber() {
   stops.forEach((st, i) => {
     st.el.style.gridRow = i + 1; if (st.del) st.del.style.gridRow = i + 1;
     const nb = st.el.querySelector('.nb');
-    nb.textContent = i + 1; nb.className = 'nb ' + (i === 0 ? 'first' : i === n - 1 ? 'last' : '');
+    nb.textContent = i + 1; nb.className = 'nb ' + (i === 0 ? 'first' : i === 1 ? 'last' : '');
     st.input.placeholder = i === 0 ? 'จุดที่ 1 เช่น ศิริราช' : i === 1 ? 'จุดที่ 2 เช่น บางมด' : 'จุดที่ ' + (i + 1);
     st.input.setAttribute('aria-label', 'แขวงจุดที่ ' + (i + 1));
     st.mic.setAttribute('aria-label', 'พูดชื่อแขวงจุดที่ ' + (i + 1));
@@ -1039,7 +1035,7 @@ function drawRoute() {
   L.polyline(ll, { color: '#fff', weight: 9, opacity: .95, pane: 'routePane', smoothFactor: 1.5 }).addTo(gRoute);
   L.polyline(ll, { color: '#1746a2', weight: 5, pane: 'routePane', smoothFactor: 1.5 }).addTo(gRoute);
   S.stops.forEach((t, i) => {
-    const kind = i === 0 ? 'o' : i === S.stops.length - 1 ? 'd' : 'm';
+    const kind = i === 0 ? 'o' : i === 1 ? 'd' : 'm';
     L.marker([t.lat, t.lng], { icon: pinIcon(kind, t.no), interactive: false, zIndexOffset: 500 + i }).addTo(gRoute);
   });
 }
