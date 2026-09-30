@@ -105,6 +105,25 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .fmic[aria-pressed="true"]{background:var(--red);animation:micpulse 1.4s ease-in-out infinite}
 .fmic[aria-pressed="true"] svg{stroke:#fff}
 @media (prefers-reduced-motion:reduce){.fmic[aria-pressed="true"]{animation:none}}
+/* โหมดจัดการลำดับจุด: ≡ แทน × / แถวสั่นเบา ๆ / เส้นขอบประ */
+.fld .hdl{display:none;touch-action:none;cursor:grab;width:40px;height:40px;margin-right:2px;-webkit-tap-highlight-color:transparent}
+.hdl svg{width:22px;height:22px;stroke:var(--ink-2);stroke-width:2.4}
+.fields.mgr .fld .hdl{display:grid;animation:hdlpop .28s cubic-bezier(.3,1.6,.5,1) both}
+.fields.mgr .fld .clr,.fields.mgr .fld .fmic{display:none}
+.fields.mgr .fld{border-style:dashed;border-color:#8a949b;background:#fff;animation:wig .55s ease-in-out infinite alternate;animation-delay:var(--d,0s)}
+.fields.mgr .fld input{pointer-events:none}
+.fields.mgr .fld .sg{display:none}
+#btn-swap[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);animation:none}
+#btn-swap[aria-pressed="true"] svg{stroke:#fff}
+.fields.dragging .fld{animation:none}
+.fields.dragging .fld:not(.drag){transition:transform .16s ease}
+.fields.dragging .fld.drag{z-index:6;transition:none;background:#fff;border-style:solid;border-color:var(--ink);box-shadow:0 8px 20px rgba(0,0,0,.2);cursor:grabbing}
+.fields.dragging .fld.drag .hdl{cursor:grabbing}
+.fld.landed{animation:landed .3s ease-out}
+@keyframes wig{from{transform:rotate(-.3deg) translateY(-.4px)}to{transform:rotate(.3deg) translateY(.4px)}}
+@keyframes hdlpop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+@keyframes landed{0%{transform:scale(1.03);background:#fff3c4}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.fields.mgr .fld,.fields.mgr .fld .hdl,.fld.landed{animation:none}}
 .go{width:100%;min-height:58px;margin-top:10px;border:0;border-radius:14px;background:var(--ink);color:#fff;
   font-size:20px;font-weight:700}
 .go:disabled{opacity:.55;cursor:progress}
@@ -323,7 +342,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.9</span>
+      <span class="ver">Ver.10</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-db" type="button" aria-label="รายชื่อแขวง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span>รายชื่อ</span>
@@ -339,7 +358,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
     <div class="fields" id="fields">
       <button class="addstop" id="btn-add" type="button">＋ เพิ่มจุดที่ 3</button>
       <div class="side2">
-        <button class="sbtn" id="btn-swap" type="button" aria-label="กลับลำดับจุดทั้งหมด">
+        <button class="sbtn" id="btn-swap" type="button" aria-label="จัดการลำดับจุด" aria-pressed="false">
           <svg viewBox="0 0 24 24"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4"/></svg>
         </button>
         <button class="sbtn" id="btn-mic" type="button" aria-pressed="false" aria-label="พูด 2 แขวงพร้อมกัน">
@@ -918,6 +937,7 @@ function addStop() {
   el.innerHTML = `<span class="nb" aria-hidden="true"></span>
     <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
     <button class="ic clr" type="button" aria-label="ล้างช่องนี้" hidden><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <button class="ic hdl" type="button" aria-label="ลากเพื่อเรียงลำดับ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h14M5 15h14"/></svg></button>
     <button class="ic fmic" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <ul class="sg" role="listbox" hidden></ul>`;
   fields.insertBefore(el, add);
@@ -925,6 +945,7 @@ function addStop() {
   st.p = makePicker(st.input, el.querySelector('.sg'), el.querySelector('.clr'), () => scheduleAutoCalc(),
     first ? { label: 'ตำแหน่งฉัน', sub: 'ใช้ GPS เป็นจุดที่ 1', run: () => useMyLocation() } : undefined);
   st.mic.addEventListener('click', () => toggleVoice(st));
+  wireDrag(st);
   st.input.addEventListener('keydown', e => { if (e.key === 'Enter' && el.querySelector('.sg').hidden) { clearTimeout(acTimer); calculate(); } });
   if (stops.length >= 2) {
     const del = document.createElement('button');
@@ -950,6 +971,8 @@ function renumber() {
   const n = stops.length;
   stops.forEach((st, i) => {
     st.el.style.gridRow = i + 1; if (st.del) st.del.style.gridRow = i + 1;
+    st.el.style.setProperty('--d', (-0.17 * i) + 's');
+    st.el.querySelector('.hdl').setAttribute('aria-label', 'เรียงลำดับจุดที่ ' + (i + 1) + ' (ลาก หรือกดลูกศรขึ้นลง)');
     const nb = st.el.querySelector('.nb');
     nb.textContent = i + 1; nb.className = 'nb ' + (i === 0 ? 'first' : i === 1 ? 'last' : '');
     st.input.placeholder = i === 0 ? 'จุดที่ 1 เช่น ศิริราช' : i === 1 ? 'จุดที่ 2 เช่น บางมด' : 'จุดที่ ' + (i + 1);
@@ -959,6 +982,77 @@ function renumber() {
   });
   const add = $('btn-add');
   add.style.gridRow = n + 1; add.textContent = '＋ เพิ่มจุดที่ ' + (n + 1); add.hidden = n >= MAXSTOPS;
+}
+
+
+/* ---------- โหมดจัดการลำดับ: กดปุ่มสลับ → โผล่ ≡ ลากเรียงจุด / กดอีกที → กลับเป็น × ---------- */
+let manageMode = false;
+const MGR_HINT = 'ลากที่ ≡ เพื่อเรียงลำดับจุด · กดปุ่มเดิมอีกครั้งเมื่อเสร็จ';
+function setManage(on) {
+  manageMode = on;
+  $('fields').classList.toggle('mgr', on);
+  const b = $('btn-swap');
+  b.setAttribute('aria-pressed', String(on));
+  b.setAttribute('aria-label', on ? 'เสร็จการเรียงลำดับ' : 'จัดการลำดับจุด');
+  const stEl = $('status');
+  if (on) {
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    stops.forEach(st => st.p.hide());
+    setStatus(MGR_HINT);
+  } else if (stEl.textContent === MGR_HINT) setStatus('');
+}
+// ย้ายค่าในช่อง from → to (ย้ายเฉพาะข้อมูล โครงช่องยังเหมือนเดิม จุด 1-2 ยังลบไม่ได้ / ช่อง 1 ยังมี "ตำแหน่งฉัน")
+function moveStopValue(from, to) {
+  if (from === to || to < 0 || to >= stops.length) return;
+  const snap = stops.map(st => ({ sel: st.p.value, text: st.input.value }));
+  snap.splice(to, 0, snap.splice(from, 1)[0]);
+  snap.forEach((v, i) => {
+    if (v.sel) stops[i].p.setPlace(v.sel); else { stops[i].p.clear(); stops[i].input.value = v.text; }
+  });
+  const lo = Math.min(from, to), hi = Math.max(from, to);
+  for (let i = lo; i <= hi; i++) {
+    const el = stops[i].el; el.classList.remove('landed'); void el.offsetWidth; el.classList.add('landed');
+    setTimeout(() => el.classList.remove('landed'), 350);
+  }
+}
+function wireDrag(st) {
+  const h = st.el.querySelector('.hdl');
+  h.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    const i = stops.indexOf(st), j = i + (e.key === 'ArrowUp' ? -1 : 1);
+    if (j < 0 || j >= stops.length) return;
+    moveStopValue(i, j); stops[j].el.querySelector('.hdl').focus();
+  });
+  h.addEventListener('pointerdown', e => {
+    if (!manageMode || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault();
+    const box = $('fields'), n = stops.length, from = stops.indexOf(st);
+    const tops = stops.map(s => s.el.getBoundingClientRect().top);
+    const pitch = tops[1] - tops[0], y0 = e.clientY;
+    let to = from;
+    h.setPointerCapture(e.pointerId);
+    box.classList.add('dragging'); st.el.classList.add('drag');
+    const move = ev => {
+      const dy = Math.max(tops[0] - tops[from], Math.min(tops[n - 1] - tops[from], ev.clientY - y0));
+      st.el.style.transform = `translateY(${dy}px) scale(1.02)`;
+      to = Math.max(0, Math.min(n - 1, Math.round((tops[from] + dy - tops[0]) / pitch)));
+      stops.forEach((s, i) => {
+        if (i === from) return;
+        const sh = from < to && i > from && i <= to ? -pitch : from > to && i >= to && i < from ? pitch : 0;
+        s.el.style.transform = sh ? `translateY(${sh}px)` : '';
+      });
+    };
+    const end = () => {
+      h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', end); h.removeEventListener('pointercancel', end);
+      try { h.releasePointerCapture(e.pointerId); } catch (_) { /* ปล่อยไปแล้ว */ }
+      box.classList.remove('dragging'); st.el.classList.remove('drag');
+      stops.forEach(s => { s.el.style.transition = 'none'; s.el.style.transform = ''; });
+      void box.offsetWidth; stops.forEach(s => { s.el.style.transition = ''; });
+      moveStopValue(from, to);
+    };
+    h.addEventListener('pointermove', move); h.addEventListener('pointerup', end); h.addEventListener('pointercancel', end);
+  });
 }
 
 /* ---------- boot ---------- */
@@ -982,12 +1076,7 @@ async function boot() {
   $('btn-mic').addEventListener('click', () => toggleVoice(null));
   $('btn-add').addEventListener('click', () => { const st = addStop(); if (st) st.input.focus(); });
   $('btn-reset').addEventListener('click', resetAll);
-  $('btn-swap').addEventListener('click', () => {          // กลับลำดับทั้งหมด 1,2,3 → 3,2,1
-    const snap = stops.map(st => ({ sel: st.p.value, text: st.input.value })).reverse();
-    snap.forEach((v, i) => {
-      if (v.sel) stops[i].p.setPlace(v.sel); else { stops[i].p.clear(); stops[i].input.value = v.text; }
-    });
-  });
+  $('btn-swap').addEventListener('click', () => setManage(!manageMode));
   $('btn-gps').addEventListener('click', () => (S.tracking ? stopGPS() : startGPS()));
   $('btn-img').addEventListener('click', saveImage);
   $('btn-sim').addEventListener('click', () => (S.simulating ? stopSim() : startSim()));
@@ -1182,6 +1271,7 @@ function clearResults() {
 
 // "เริ่มงานใหม่" — ล้างทั้งช่องค้นหาและผลลัพธ์พร้อมกัน (ลบข้อความในช่องเฉยๆ ไม่ล้างผลลัพธ์ให้)
 function resetAll() {
+  if (manageMode) setManage(false);
   clearTimeout(acTimer);
   stopGPS(true); stopSim(true);
   while (stops.length > 2) removeStop(stops[stops.length - 1]);
