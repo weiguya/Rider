@@ -63,7 +63,7 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .tbtn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ver{flex:none;font-size:12px;font-weight:700;color:var(--ink-2);background:#eef1f3;border-radius:999px;padding:2px 9px}
 .tagline{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
-.fields{display:grid;grid-template-columns:1fr 40px;gap:6px;margin-top:8px}
+.fields{display:grid;grid-template-columns:1fr 36px;gap:6px;margin-top:8px}
 .fld{position:relative;min-width:0;display:flex;align-items:center;min-height:44px;border:1.5px solid var(--line);
   border-radius:22px;background:#f2f4f6}
 .fld:focus-within{border-color:var(--ink);background:#fff}
@@ -72,17 +72,7 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
   color:#fff;font-size:11px;font-weight:700;line-height:1}
 .nb.first{background:var(--green)}
 .nb.last{background:var(--red)}
-.side2{grid-column:2;grid-row:1 / 3;display:grid;grid-template-rows:1fr 1fr;gap:6px}
-.sbtn{position:relative;width:40px;padding:0;border:1.5px solid var(--line);border-radius:10px;background:#fff;display:grid;place-items:center}
-.sbtn:active{background:#dfe4e8}
-.sbtn svg{width:19px;height:19px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.sbtn .b2{position:absolute;right:1px;bottom:1px;min-width:14px;height:14px;border-radius:7px;background:var(--ink);color:#fff;
-  font-size:9.5px;font-weight:700;line-height:1;display:grid;place-items:center}
-.sbtn[aria-pressed="true"]{background:var(--red);border-color:var(--red);animation:micpulse 1.4s ease-in-out infinite}
-.sbtn[aria-pressed="true"] svg{stroke:#fff}
-.sbtn[aria-pressed="true"] .b2{background:#fff;color:var(--red)}
-@media (prefers-reduced-motion:reduce){.sbtn[aria-pressed="true"]{animation:none}}
-.delbtn{grid-column:2;width:40px;height:44px;padding:0;border:1.5px solid var(--line);border-radius:10px;background:#fff;display:grid;place-items:center}
+.delbtn{grid-column:2;width:36px;height:44px;padding:0;border:1.5px solid var(--line);border-radius:10px;background:#fff;display:grid;place-items:center}
 .delbtn:active{background:#dfe4e8}
 .delbtn svg{width:18px;height:18px;stroke:#767f86;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .addstop{grid-column:1;min-height:38px;border:1.5px dashed #aab3ba;border-radius:19px;background:transparent;font-size:13.5px;font-weight:700;color:var(--ink-2)}
@@ -100,26 +90,15 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .ic.side{grid-column:2;width:48px;height:56px;border:2px solid var(--line);background:#fff;border-radius:12px}
 .ic.swap{grid-row:1 / 3;height:auto}
 .fld .ic.clr{width:30px}
-.fld .ic.fmic{width:34px;height:34px;margin-right:4px}
-.fld .ic.fmic svg{width:17px;height:17px}
-.fmic[aria-pressed="true"]{background:var(--red);animation:micpulse 1.4s ease-in-out infinite}
-.fmic[aria-pressed="true"] svg{stroke:#fff}
-@media (prefers-reduced-motion:reduce){.fmic[aria-pressed="true"]{animation:none}}
+.fld .ic.loc{width:34px;height:34px;margin-right:4px}
+.fld .ic.loc svg{width:18px;height:18px;stroke:var(--green)}
 .go{width:100%;min-height:58px;margin-top:10px;border:0;border-radius:14px;background:var(--ink);color:#fff;
   font-size:20px;font-weight:700}
 .go:disabled{opacity:.55;cursor:progress}
 .mic{width:100%;min-height:52px;margin-top:10px;border:2px solid var(--ink);border-radius:14px;background:#fff;
   display:flex;align-items:center;justify-content:center;gap:10px;font-size:17px;font-weight:700;color:var(--ink)}
 .mic svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.mic[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff;animation:micpulse 1.4s ease-in-out infinite}
-@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(200,50,31,.45)}50%{box-shadow:0 0 0 8px rgba(200,50,31,0)}}
 @media (prefers-reduced-motion:reduce){.mic[aria-pressed="true"]{animation:none}}
-.vbox{margin-top:10px;padding:12px;border-radius:12px;background:#fff1cc;border:2px solid var(--amber-ink);display:grid;gap:10px}
-.vheard{font-size:14px;color:var(--amber-ink)}
-.vslot b{display:block;margin-bottom:6px;font-size:15px;color:var(--amber-ink)}
-.vchips{display:flex;flex-wrap:wrap;gap:8px}
-.vchip{min-height:48px;padding:6px 14px;border:2px solid var(--amber-ink);border-radius:12px;background:#fff;text-align:left;font-size:16px;font-weight:700;color:var(--ink)}
-.vchip small{display:block;font-size:12px;font-weight:500;color:var(--ink-2)}
 .vmsg{font-size:15px;color:var(--amber-ink)}
 .quick2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px}
 .qbtn{min-height:48px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:15px;font-weight:700;color:var(--ink)}
@@ -176,10 +155,8 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
    5. RESULTS: สรุป, GPS, เช็คงานซ้อน, การ์ดป้ายแขวง
    ===================================================================== */
 .empty{margin:6px 2px;font-size:14.5px;color:var(--ink-2)}
-.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 10px;align-items:start}
-.cols3>div{min-width:0}
-.cols3 .clist{max-height:34vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-@media (min-width:560px){.cols3 .clist{max-height:44vh}}
+.cols2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px;align-items:start}
+.cols2>div{min-width:0}
 .sum{margin:0 0 8px;font-size:16px;font-weight:500}
 .sum b{font-weight:700;font-size:20px}
 .warn{margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff1cc;border:2px solid var(--amber-ink);
@@ -236,6 +213,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
 .crow.near.here{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--route)}
 .crow.fwd{background:#eef1f3;color:var(--ink);border:1.5px dashed #aab3ba}
 .crow.fwd .cno{background:#fff;color:var(--ink-2)}
+.crow.other{background:#f4efe3;color:#8a7654}
 .foot{margin-top:28px;font-size:14px;color:var(--ink-2)}
 .foot summary{min-height:44px;display:flex;align-items:center;font-weight:600;cursor:pointer}
 .foot p{margin:6px 0}
@@ -321,7 +299,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.7</span>
+      <span class="ver">Ver.8</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-db" type="button" aria-label="รายชื่อแขวง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span>รายชื่อ</span>
@@ -331,21 +309,10 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
         </button>
       </div>
     </div>
-    <p class="tagline">ดูว่าเส้นทางผ่านแขวงไหนบ้าง ก่อนรับงานซ้อน</p>
-
     <p class="boot-hint" id="boot-hint">กำลังเตรียมข้อมูลแขวง…</p>
     <div class="fields" id="fields">
       <button class="addstop" id="btn-add" type="button">＋ เพิ่มจุดที่ 3</button>
-      <div class="side2">
-        <button class="sbtn" id="btn-swap" type="button" aria-label="กลับลำดับจุดทั้งหมด">
-          <svg viewBox="0 0 24 24"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4"/></svg>
-        </button>
-        <button class="sbtn" id="btn-mic" type="button" aria-pressed="false" aria-label="พูด 2 แขวงพร้อมกัน">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span class="b2" aria-hidden="true">2</span>
-        </button>
-      </div>
     </div>
-    <div class="vbox" id="voice-box" hidden></div>
     <p class="status" id="status" role="status" aria-live="polite"></p>
   </header>
 
@@ -371,10 +338,13 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
         <div class="gps-t" id="gps-t">เปิด GPS เพื่อให้แขวงที่ผ่านไปแล้วเป็นสีเทาอัตโนมัติ</div>
       </div>
 
-      <div class="cols3">
+      <div class="cols2">
         <div>
           <h2>ทางผ่าน</h2>
           <ol class="clist" id="list-main"></ol>
+          <h2>ไปต่อ</h2>
+          <p class="hint">ทางเดียวกัน</p>
+          <ol class="clist" id="list-forward"></ol>
         </div>
         <div>
           <div class="h2row">
@@ -387,12 +357,11 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
           </div>
           <ol class="clist" id="list-near"></ol>
         </div>
-        <div>
-          <h2>ไปต่อ</h2>
-          <p class="hint">ทางเดียวกัน</p>
-          <ol class="clist" id="list-forward"></ol>
-        </div>
       </div>
+
+      <h2>แขวงอื่นๆ</h2>
+      <p class="hint">ทั้งหมด ไว้ดูเผื่อศึกษาพื้นที่</p>
+      <ol class="clist" id="list-other"></ol>
     </div>
 
     <details class="foot">
@@ -820,16 +789,15 @@ function browseAll() {
 }
 
 /* ---------- pickers (ช่องค้นหา + dropdown เลือกเขต + ปุ่มล้าง) ---------- */
-function makePicker(input, list, clearBtn, onChange, extra) {
+function makePicker(input, list, clearBtn, onChange, locBtn) {
   let sel = null, items = [], act = -1;
   const hide = () => { list.hidden = true; act = -1; };
-  const syncClr = () => { if (clearBtn) clearBtn.hidden = !input.value; };
+  const syncClr = () => { if (clearBtn) clearBtn.hidden = !input.value; if (locBtn) locBtn.hidden = !!input.value; };
   function show() {
     const q = sel ? '' : input.value.trim();                 // แตะช่องที่เลือกไว้แล้ว = เลือกใหม่จากรายการทั้งหมด
     items = q ? searchScored(q).slice(0, 8).map(x => x.r) : browseAll();
-    if (!items.length && !extra) { hide(); return; }
-    const head = extra ? `<li class="locitem" role="option" data-loc="1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><div><b>${esc(extra.label)}</b><span>${esc(extra.sub)}</span></div></li>` : '';
-    list.innerHTML = head + items.map((r, i) => `<li role="option" data-i="${i}"><b>${esc(r.name)}</b><span>${esc(r.sub)}</span></li>`).join('');
+    if (!items.length) { hide(); return; }
+    list.innerHTML = items.map((r, i) => `<li role="option" data-i="${i}"><b>${esc(r.name)}</b><span>${esc(r.sub)}</span></li>`).join('');
     list.hidden = false; act = -1;
     fitList();
   }
@@ -874,23 +842,18 @@ function makePicker(input, list, clearBtn, onChange, extra) {
   input.addEventListener('keydown', e => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       if (list.hidden) show();
-      const total = items.length + (extra ? 1 : 0);
-      if (!total) return;
+      if (!items.length) return;
       e.preventDefault();
-      act = (act + (e.key === 'ArrowDown' ? 1 : -1) + total) % total;
+      act = (act + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
       [...list.children].forEach((li, i) => li.classList.toggle('act', i === act));
     } else if (e.key === 'Enter') {
-      if (!list.hidden && act >= 0) {
-        e.preventDefault();
-        if (extra && act === 0) { hide(); extra.run(); } else api.setRec(items[act - (extra ? 1 : 0)]);
-      }
+      if (!list.hidden && act >= 0) { e.preventDefault(); api.setRec(items[act]); }
     } else if (e.key === 'Escape') hide();
   });
   // เลือกตอน "แตะเสร็จ" (click) ไม่ใช่ตอนนิ้วแตะลง — ไม่งั้นเริ่มเลื่อนรายการก็ไปเลือกแขวงเลย
   list.addEventListener('mousedown', e => e.preventDefault());       // กัน input blur ก่อน click
   list.addEventListener('click', e => {
     const li = e.target.closest('li'); if (!li) return;
-    if (li.dataset.loc) { hide(); input.blur(); extra.run(); return; }
     api.setRec(items[+li.dataset.i]);
   });
   api.hide = hide; api.box = input.parentElement;
@@ -914,13 +877,13 @@ function addStop() {
   el.innerHTML = `<span class="nb" aria-hidden="true"></span>
     <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
     <button class="ic clr" type="button" aria-label="ล้างช่องนี้" hidden><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-    <button class="ic fmic" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    ${first ? `<button class="ic loc" type="button" aria-label="ใช้ตำแหน่งปัจจุบันเป็นจุดที่ 1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>` : ''}
     <ul class="sg" role="listbox" hidden></ul>`;
   fields.insertBefore(el, add);
-  const st = { el, del: null, input: el.querySelector('input'), mic: el.querySelector('.fmic') };
-  st.p = makePicker(st.input, el.querySelector('.sg'), el.querySelector('.clr'), () => scheduleAutoCalc(),
-    first ? { label: 'ตำแหน่งฉัน', sub: 'ใช้ GPS เป็นจุดที่ 1', run: () => useMyLocation() } : undefined);
-  st.mic.addEventListener('click', () => toggleVoice(st));
+  const locBtn = el.querySelector('.loc');
+  const st = { el, del: null, input: el.querySelector('input') };
+  st.p = makePicker(st.input, el.querySelector('.sg'), el.querySelector('.clr'), () => scheduleAutoCalc(), locBtn);
+  if (locBtn) locBtn.addEventListener('click', () => useMyLocation());
   st.input.addEventListener('keydown', e => { if (e.key === 'Enter' && el.querySelector('.sg').hidden) { clearTimeout(acTimer); calculate(); } });
   if (stops.length >= 2) {
     const del = document.createElement('button');
@@ -947,10 +910,9 @@ function renumber() {
   stops.forEach((st, i) => {
     st.el.style.gridRow = i + 1; if (st.del) st.del.style.gridRow = i + 1;
     const nb = st.el.querySelector('.nb');
-    nb.textContent = i + 1; nb.className = 'nb ' + (i === 0 ? 'first' : i === n - 1 ? 'last' : '');
+    nb.textContent = i + 1; nb.className = 'nb ' + (i === 0 ? 'first' : i === 1 ? 'last' : '');
     st.input.placeholder = i === 0 ? 'จุดที่ 1 เช่น ศิริราช' : i === 1 ? 'จุดที่ 2 เช่น บางมด' : 'จุดที่ ' + (i + 1);
     st.input.setAttribute('aria-label', 'แขวงจุดที่ ' + (i + 1));
-    st.mic.setAttribute('aria-label', 'พูดชื่อแขวงจุดที่ ' + (i + 1));
     if (st.del) st.del.setAttribute('aria-label', 'ลบจุดที่ ' + (i + 1));
   });
   const add = $('btn-add');
@@ -975,15 +937,8 @@ async function boot() {
     stops.forEach(st => { if (!st.p.box.contains(e.target)) st.p.hide(); });
   });
 
-  $('btn-mic').addEventListener('click', () => toggleVoice(null));
   $('btn-add').addEventListener('click', () => { const st = addStop(); if (st) st.input.focus(); });
   $('btn-reset').addEventListener('click', resetAll);
-  $('btn-swap').addEventListener('click', () => {          // กลับลำดับทั้งหมด 1,2,3 → 3,2,1
-    const snap = stops.map(st => ({ sel: st.p.value, text: st.input.value })).reverse();
-    snap.forEach((v, i) => {
-      if (v.sel) stops[i].p.setPlace(v.sel); else { stops[i].p.clear(); stops[i].input.value = v.text; }
-    });
-  });
   $('btn-gps').addEventListener('click', () => (S.tracking ? stopGPS() : startGPS()));
   $('btn-sim').addEventListener('click', () => (S.simulating ? stopSim() : startSim()));
   $('btn-fit').addEventListener('click', fitAll);
@@ -1039,7 +994,7 @@ function drawRoute() {
   L.polyline(ll, { color: '#fff', weight: 9, opacity: .95, pane: 'routePane', smoothFactor: 1.5 }).addTo(gRoute);
   L.polyline(ll, { color: '#1746a2', weight: 5, pane: 'routePane', smoothFactor: 1.5 }).addTo(gRoute);
   S.stops.forEach((t, i) => {
-    const kind = i === 0 ? 'o' : i === S.stops.length - 1 ? 'd' : 'm';
+    const kind = i === 0 ? 'o' : i === 1 ? 'd' : 'm';
     L.marker([t.lat, t.lng], { icon: pinIcon(kind, t.no), interactive: false, zIndexOffset: 500 + i }).addTo(gRoute);
   });
 }
@@ -1242,7 +1197,7 @@ function renderSummary() {
 
 /* ---------- การ์ดป้ายแขวง ---------- */
 function renderLists() {
-  const om = $('list-main'), on = $('list-near'), of = $('list-forward');
+  const om = $('list-main'), on = $('list-near'), of = $('list-forward'), oo = $('list-other');
   om.innerHTML = S.main.map(m => {
     const nos = S.stopNos.get(m.rec.id), tag = nos ? nos.map(k => k).join('/') : m.order;
     return `<li class="crow main" data-id="${m.rec.id}" data-kind="main" tabindex="0">
@@ -1259,6 +1214,9 @@ function renderLists() {
       <span class="cnm">${esc(f.rec.name)}</span><span class="cds">${esc(f.rec.sub)}</span>
       <span class="ckm">${f.distKm.toFixed(1)} กม.</span></li>`).join('')
     : '<li class="hint">ไม่มีแขวงต่อในทิศทางนี้</li>';
+  const used = new Set([...S.main.map(m => m.rec.id), ...S.near.map(x => x.rec.id), ...S.forward.map(x => x.rec.id)]);
+  oo.innerHTML = browseAll().filter(r => !used.has(r.id)).map(r =>
+    `<li class="crow other"><span class="cnm">${esc(r.name)}</span><span class="cds">${esc(r.sub)}</span></li>`).join('');
 }
 function cardClick(e) { const li = e.target.closest('.crow'); if (li && li.dataset.kind) focusMap(+li.dataset.id); }
 function focusMap(id) {
@@ -1578,89 +1536,6 @@ function wireDirectory() {
   });
 }
 
-/* ---------- พูดจุดรับ-จุดส่งพร้อมกัน (Web Speech API — Chrome) ---------- */
-let recog = null, listening = false;
-// target: null = ปุ่ม "2" (พูดสองแขวงต่อกัน ใส่ช่องว่างก่อน หมดแล้วเพิ่มจุดใหม่) | stop = ไมค์ในช่อง (แขวงเดียวใส่ช่องนั้น)
-function setMic(on, target) {
-  listening = on;
-  $('btn-mic').setAttribute('aria-pressed', String(on && !target));
-  stops.forEach(st => st.mic.setAttribute('aria-pressed', String(on && target === st)));
-}
-function toggleVoice(target) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { setStatus('เบราว์เซอร์นี้ไม่รองรับการพูด ใช้ Chrome', true); return; }
-  if (listening && recog) { recog.stop(); return; }
-  $('voice-box').hidden = true; setStatus('');
-  stops.forEach(st => st.p.hide());
-  recog = new SR();
-  recog.lang = 'th-TH'; recog.interimResults = true; recog.continuous = false; recog.maxAlternatives = 1;
-  let finalText = '', failed = false;
-  recog.onstart = () => {
-    setMic(true, target);
-    setStatus(target ? `กำลังฟัง… พูดชื่อแขวงจุดที่ ${stops.indexOf(target) + 1}` : 'กำลังฟัง… พูดแขวงแรกแล้วต่อด้วยแขวงที่สอง');
-  };
-  recog.onresult = e => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const tr = e.results[i][0].transcript;
-      if (e.results[i].isFinal) finalText += tr; else interim += tr;
-    }
-    setStatus('ได้ยิน: ' + (finalText + interim));
-  };
-  recog.onerror = e => {
-    const m = { 'not-allowed': 'ไม่ได้รับอนุญาตใช้ไมโครโฟน เปิดสิทธิ์ไมค์ให้เว็บนี้ใน Chrome แล้วลองใหม่',
-                'service-not-allowed': 'ไม่ได้รับอนุญาตใช้ไมโครโฟน เปิดสิทธิ์ไมค์ให้เว็บนี้ใน Chrome แล้วลองใหม่',
-                'no-speech': 'ไม่ได้ยินเสียง ลองกดแล้วพูดใหม่', 'audio-capture': 'ไม่พบไมโครโฟน',
-                'network': 'ต้องต่ออินเทอร์เน็ตเพื่อแปลงเสียง' }[e.error];
-    if (e.error !== 'aborted') { failed = true; setStatus(m || 'ใช้เสียงไม่ได้ (' + e.error + ')', true); }
-  };
-  recog.onend = () => {
-    setMic(false);
-    if (finalText.trim()) applyVoice(finalText.trim(), target);
-    else if (!failed) setStatus('');
-  };
-  try { recog.start(); } catch (err) { setStatus('เริ่มฟังไม่ได้ ลองใหม่อีกครั้ง', true); }
-}
-// ช่องว่างมาก่อน ถ้าไม่พอค่อยเพิ่มจุดใหม่ต่อท้าย (จุด 1-2 ยังอยู่ → พูดรอบหน้าเป็นจุด 3-4)
-function takeTargets(n) {
-  const free = stops.filter(st => !stopFilled(st));
-  while (free.length < n) { const st = addStop(); if (!st) break; free.push(st); }
-  return free.slice(0, n);
-}
-const voiceAllOk = r => r.slots.every(sl => sl && sl.status === 'ok');
-function applyVoice(text, target) {
-  if (target && !stops.includes(target)) return;
-  const pr = parseVoicePair(text);
-  const tg = target ? [target] : takeTargets(2);
-  const slots = (target ? [pr.origin] : [pr.origin, pr.dest]).slice(0, tg.length);
-  const r = { transcript: text, slots, tg };
-  slots.forEach((sl, i) => { if (sl && sl.status === 'ok') tg[i].p.setRec(sl.rec); });
-  renderVoiceBox(r);
-  if (voiceAllOk(r)) setStatus(target ? 'ตั้งจากเสียงแล้ว' : 'ตั้งจากเสียงแล้ว ตรวจชื่อแล้วกดคำนวณเส้นทาง');
-  else setStatus('ได้ยิน: ' + text);
-}
-function renderVoiceBox(r) {
-  const box = $('voice-box');
-  const bad = r.slots.map((sl, i) => [sl || { status: 'unclear' }, i]).filter(([sl, i]) => sl.status !== 'ok' && stops.includes(r.tg[i]));
-  if (!bad.length) { box.hidden = true; return; }
-  box.innerHTML = `<div class="vheard">ได้ยิน: ${esc(r.transcript)}</div>` + bad.map(([sl, i]) => {
-    const label = 'จุดที่ ' + (stops.indexOf(r.tg[i]) + 1);
-    return sl.status === 'ambiguous'
-      ? `<div class="vslot"><b>${label}: หมายถึงอันไหน?</b><div class="vchips">${sl.candidates.map(c =>
-          `<button class="vchip" type="button" data-k="${i}" data-c="${c.id}">${esc(c.name)}<small>${esc(c.sub)}</small></button>`).join('')}</div></div>`
-      : `<div class="vslot"><b>${label}</b><div class="vmsg">ฟังชื่อไม่ชัด — พิมพ์ในช่อง หรือกดไมค์พูดใหม่</div></div>`;
-  }).join('');
-  box.hidden = false;
-  box.onclick = e => {
-    const b = e.target.closest('.vchip'); if (!b) return;
-    const i = +b.dataset.k, rec = DB.recs[+b.dataset.c];
-    if (!stops.includes(r.tg[i])) return;
-    r.tg[i].p.setRec(rec);
-    r.slots[i] = { status: 'ok', rec };
-    renderVoiceBox(r);
-    if (voiceAllOk(r)) setStatus(r.tg.length > 1 ? 'ตั้งจากเสียงแล้ว ตรวจชื่อแล้วกดคำนวณเส้นทาง' : 'ตั้งจากเสียงแล้ว');
-  };
-}
 
 window.__rider = { S, onFix, DB };
 })();
