@@ -195,6 +195,9 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .qzopts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
 .qzopts button{flex:1;min-height:48px;padding:0 10px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:15px;font-weight:700}
 .qzopts button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.qzopts.multi button{flex:1 1 calc(50% - 8px)}
+.qzopts.multi button.all{flex-basis:100%}
+.qzopts button.off{opacity:.45}
 .qzbest{margin:0 0 12px;font-size:14px;color:var(--ink-2)}
 .qzprog{height:6px;border-radius:3px;background:#d3d8dc;margin-bottom:10px;overflow:hidden}
 .qzprog div{height:100%;width:0;background:var(--ink);transition:width .25s}
@@ -213,6 +216,7 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .qzfb{margin:4px 0 10px;padding:12px 14px;border-radius:12px;background:#fff;border:2px solid var(--line);font-size:15px;line-height:1.45}
 .qzfb.ok{border-color:var(--green)}.qzfb.bad{border-color:var(--red)}
 .qzfb b{font-weight:700}
+.qzfact{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:13.5px;line-height:1.55;color:var(--ink-2)}
 .qzbig{margin:18px 0 4px;text-align:center;font-size:56px;font-weight:800}
 .qzmsg{margin:0 0 16px;text-align:center;font-size:17px;font-weight:600}
 .qzrow{display:block;width:100%;margin:0 0 8px;padding:10px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;text-align:left;font-size:15px}
@@ -386,7 +390,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.15</span>
+      <span class="ver">Ver.17</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-reset" type="button" aria-label="รีเซ็ทเส้นทาง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><span>รีเซ็ต</span>
@@ -521,7 +525,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
         <div class="qzh">ขอบเขต</div>
         <div class="qzopts" id="qzo-scope"><button type="button" data-v="bkk">กทม.</button><button type="button" data-v="all">รวมปริมณฑล</button></div>
         <div class="qzh">แบบคำถาม</div>
-        <div class="qzopts" id="qzo-kind"><button type="button" data-v="mix">ผสม</button><button type="button" data-v="adj">ติดกับแขวงไหน</button><button type="button" data-v="dist">อยู่เขตอะไร</button></div>
+        <div class="qzopts multi" id="qzo-kind"></div>
         <p class="qzbest" id="qz-best"></p>
         <button class="go" id="qz-start" type="button">เริ่ม 10 ข้อ</button>
       </div>
@@ -1858,8 +1862,9 @@ function previewRec(rec) {
 }
 
 /* ---------- แบบทดสอบความจำแขวง: ติดกับแขวงไหน / อยู่เขตอะไร (สุ่มสดจากฐานข้อมูล) ---------- */
-const QZ = { cfg: { scope: 'bkk', kind: 'mix', best: { bkk: 0, all: 0 }, wrong: [] }, N: 10, i: 0, score: 0, used: new Set(), cur: null, done: false, results: [], map: null, grp: null, rend: null, tiles: null, groups: null, ready: false };
-try { const c = JSON.parse(localStorage.getItem('rider.quiz') || '{}'); Object.assign(QZ.cfg, c); QZ.cfg.best = Object.assign({ bkk: 0, all: 0 }, c.best || {}); if (!Array.isArray(QZ.cfg.wrong)) QZ.cfg.wrong = []; } catch (e) { /* ignore */ }
+const QZ_KINDS = [['adj', 'ติดกับแขวงไหน'], ['nadj', 'ไม่ติดกับแขวงไหน'], ['dist', 'อยู่เขตอะไร'], ['inD', 'แขวงไหนอยู่ในเขต'], ['map', 'ทายจากแผนที่'], ['near', 'ใกล้ที่สุด'], ['prov', 'อยู่จังหวัดอะไร (ปริมณฑล)'], ['dup', 'ชื่อไหนซ้ำ']];
+const QZ = { cfg: { scope: 'bkk', kinds: QZ_KINDS.map(k => k[0]), best: { bkk: 0, all: 0 }, wrong: [] }, N: 10, i: 0, score: 0, used: new Set(), cur: null, done: false, results: [], map: null, grp: null, rend: null, tiles: null, groups: null, ready: false };
+try { const c = JSON.parse(localStorage.getItem('rider.quiz') || '{}'); Object.assign(QZ.cfg, c); QZ.cfg.best = Object.assign({ bkk: 0, all: 0 }, c.best || {}); if (!Array.isArray(QZ.cfg.wrong)) QZ.cfg.wrong = []; if (!Array.isArray(QZ.cfg.kinds) || !QZ.cfg.kinds.length) QZ.cfg.kinds = QZ_KINDS.map(k => k[0]); } catch (e) { /* ignore */ }
 const qzSave = () => { try { localStorage.setItem('rider.quiz', JSON.stringify(QZ.cfg)); } catch (e) { /* ignore */ } };
 const qzKey = r => r.provCode + '|' + r.district + '|' + r.name;
 const qzShuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -1868,7 +1873,7 @@ const qzSub = r => r.isBkk ? `เขต${r.district}` : `อำเภอ${r.dist
 function qzPrep() {
   if (QZ.ready) return;
   QZ.groups = new Map(); QZ.byKey = new Map();
-  const cnt = new Map();
+  const cnt = new Map(), gcnt = new Map();
   for (const r of DB.recs) {
     const p = repOf(r);
     r._dk = r.provCode + '|' + r.district;
@@ -1876,11 +1881,12 @@ function qzPrep() {
     if (!g) { g = { key: r._dk, district: r.district, prov: r.prov, provCode: r.provCode, isBkk: r.isBkk, distWord: r.distWord, members: [], cx: 0, cy: 0 }; QZ.groups.set(r._dk, g); }
     g.members.push(r); g.cx += p[0]; g.cy += p[1];
     const k = r.provCode + '|' + r.name; cnt.set(k, (cnt.get(k) || 0) + 1);
+    gcnt.set(r.name, (gcnt.get(r.name) || 0) + 1);
     r._bb = turf.bbox({ type: 'Feature', properties: {}, geometry: r.geom });
     QZ.byKey.set(qzKey(r), r);
   }
   QZ.groups.forEach(g => { g.cx /= g.members.length; g.cy /= g.members.length; });
-  DB.recs.forEach(r => { r._uniq = cnt.get(r.provCode + '|' + r.name) === 1; });   // ชื่อไม่ซ้ำในจังหวัดเดียวกัน → ถามได้ไม่กำกวม
+  DB.recs.forEach(r => { r._uniq = cnt.get(r.provCode + '|' + r.name) === 1; r._gu = gcnt.get(r.name) === 1; r._gc = gcnt.get(r.name); });   // ชื่อไม่ซ้ำในจังหวัดเดียวกัน → ถามได้ไม่กำกวม
   QZ.ready = true;
 }
 function qzRings(r) {
@@ -1949,11 +1955,143 @@ function qzPickRec() {
   }
   return pool[Math.floor(Math.random() * pool.length)];
 }
+// เพื่อนบ้าน (ติดกัน) + ตัวไกล (ไม่ติด แต่ยังอยู่แถวนั้น)
+function qzNbFar(r) {
+  const E = 0.0012, F = 0.004, nb = [];
+  for (const o of DB.recs) { if (o === r || !qzBBhit(r, o, F)) continue; if (qzNear(r, o, E) || qzNear(o, r, E)) nb.push(o); }
+  const nbNames = new Set(nb.map(o => o.name));
+  let far = [];
+  for (const w of [0.05, 0.1, 0.25]) {
+    far = DB.recs.filter(o => o !== r && o.name !== r.name && !nbNames.has(o.name) && !qzBBhit(r, o, F) && qzBBhit(r, o, w));
+    if (far.length >= 3) break;
+  }
+  return { nb, far };
+}
+function qzUniq(list, n, taken) {      // เลือก n ตัวที่ชื่อไม่ซ้ำกัน
+  const names = new Set(taken || []), out = [];
+  for (const o of qzShuffle(list)) { if (names.has(o.name)) continue; names.add(o.name); out.push(o); if (out.length === n) break; }
+  return out;
+}
+function qzNadj(r) {
+  const { nb, far } = qzNbFar(r);
+  if (nb.length < 3 || !far.length) return null;
+  const bad = far[Math.floor(Math.random() * far.length)];
+  const ds = qzUniq(nb, 3, [bad.name]); if (ds.length < 3) return null;
+  const choices = qzShuffle([bad, ...ds]).map(o => ({ rec: o, label: o.name, sub: qzSub(o), ok: o === bad }));
+  const nn = nb.map(o => o.name);
+  return { type: 'nadj', rec: r, nb, okRec: bad, choices,
+    text: `ข้อไหน<b>ไม่ติด</b>กับ ${r.unit}${esc(r.name)}?<small>${esc(qzSub(r))}</small>`,
+    ans: `${bad.name} ไม่ติดกับ ${r.name} · ที่ติดจริง: ${nn.slice(0, 8).join(', ')}${nn.length > 8 ? ` …(รวม ${nn.length} แห่ง)` : ''}` };
+}
+function qzInD(r) {
+  const g = QZ.groups.get(r._dk);
+  const others = [...QZ.groups.values()].filter(x => x !== g && x.isBkk === g.isBkk).sort((a, b) => hav(g.cx, g.cy, a.cx, a.cy) - hav(g.cx, g.cy, b.cx, b.cy)).slice(0, 6);
+  const memberNames = g.members.map(m => m.name);
+  const pool = [];
+  qzShuffle(others).forEach(x => { const c = x.members.filter(m => !memberNames.includes(m.name)); if (c.length) pool.push(c[Math.floor(Math.random() * c.length)]); });
+  const ds = qzUniq(pool, 3, memberNames); if (ds.length < 3) return null;
+  const choices = qzShuffle([r, ...ds]).map(o => ({ rec: o, label: o.name, sub: '', ok: o === r }));
+  const nn = g.members.map(m => m.name);
+  return { type: 'inD', rec: r, grp: g, choices,
+    text: `${r.unit}ไหนอยู่ใน<b>${g.distWord}${esc(g.district)}</b>${g.isBkk ? '' : ' จ.' + esc(g.prov)}?`,
+    ans: `${r.name} อยู่ใน${g.distWord}${g.district} · ทั้ง${g.distWord}มี: ${nn.slice(0, 10).join(', ')}${nn.length > 10 ? ` …(รวม ${nn.length})` : ''}` };
+}
+function qzMapQ(r) {
+  const p = repOf(r);
+  const near = DB.recs.filter(o => o !== r && o.name !== r.name && o.isBkk === r.isBkk).map(o => { const q = repOf(o); return { o, d: hav(p[0], p[1], q[0], q[1]) }; }).sort((a, b) => a.d - b.d).slice(0, 10).map(x => x.o);
+  const ds = qzUniq(near, 3, [r.name]); if (ds.length < 3) return null;
+  const choices = qzShuffle([r, ...ds]).map(o => ({ rec: o, label: o.name, sub: qzSub(o), ok: o === r }));
+  return { type: 'map', rec: r, choices,
+    text: `นี่คือ${r.unit}อะไร?<small>ดูรูปร่างบนแผนที่ (ไม่โชว์ชื่อ)</small>`,
+    ans: `นี่คือ ${r.unit}${r.name} (${qzSub(r)})` };
+}
+function qzNearest(r) {
+  const p = repOf(r);
+  const arr = DB.recs.filter(o => o !== r && o.name !== r.name).map(o => { const q = repOf(o); return { o, d: hav(p[0], p[1], q[0], q[1]) }; }).sort((a, b) => a.d - b.d).slice(0, 25);
+  const ci = Math.floor(Math.random() * 6), c = arr[ci]; if (!c) return null;
+  const farther = arr.slice(ci + 1).filter(x => x.d >= c.d * 1.3 && x.d - c.d > 0.4);
+  const ds = []; const names = new Set([c.o.name]);
+  for (const x of qzShuffle(farther)) { if (names.has(x.o.name)) continue; names.add(x.o.name); ds.push(x); if (ds.length === 3) break; }
+  if (ds.length < 3) return null;
+  const choices = qzShuffle([c, ...ds]).map(x => ({ rec: x.o, label: x.o.name, sub: qzSub(x.o), km: x.d, ok: x === c }));
+  const byKm = choices.slice().sort((a, b) => a.km - b.km).map(x => `${x.label} ${x.km.toFixed(1)} กม.`).join(' / ');
+  return { type: 'near', rec: r, choices,
+    text: `ข้อไหน<b>อยู่ใกล้</b> ${r.unit}${esc(r.name)} ที่สุด?<small>${esc(qzSub(r))} · วัดจากจุดกลางแขวง</small>`,
+    ans: `ใกล้สุดคือ ${c.o.name} · ${byKm}` };
+}
+function qzProv(r) {
+  if (r.isBkk || !r._gu) return null;
+  const others = PROV_ORDER.filter(c => c !== 10 && c !== r.provCode);
+  const choices = qzShuffle([r.provCode, ...qzShuffle(others).slice(0, 3)]).map(c => ({ code: c, label: PROV[c], sub: '', ok: c === r.provCode }));
+  return { type: 'prov', rec: r, choices,
+    text: `${r.unit}${esc(r.name)} อยู่<b>จังหวัด</b>อะไร?`,
+    ans: `${r.unit}${r.name} อยู่ จ.${r.prov} (อำเภอ${r.district})` };
+}
+function qzDup(r) {
+  if (r._gc < 2) return null;
+  const same = DB.recs.filter(o => o.name === r.name);
+  const singles = DB.recs.filter(o => o._gc === 1 && (QZ.cfg.scope === 'all' || o.isBkk) && o.isBkk === r.isBkk);
+  const ds = qzUniq(singles, 3, [r.name]); if (ds.length < 3) return null;
+  const choices = qzShuffle([r, ...ds]).map(o => ({ rec: o, label: o.name, sub: '', ok: o === r }));
+  const where = same.map(o => `${o.unit}${o.name} (${o.isBkk ? 'เขต' + o.district : 'อ.' + o.district + ' จ.' + o.prov})`);
+  return { type: 'dup', rec: r, same, choices,
+    text: `ชื่อไหน<b>ซ้ำกัน</b>มากกว่า 1 แห่ง?<small>มีแขวง/ตำบลชื่อเดียวกันหลายที่ในข้อมูล</small>`,
+    ans: `${r.name} มี ${same.length} แห่ง: ${same.map(o => (o.isBkk ? 'เขต' + o.district : 'อ.' + o.district + ' จ.' + o.prov)).join(' · ')}` };
+}
+const QZ_CENTER = [100.4927, 13.7515];     // สนามหลวง
+function qzArea(r) { if (r._km2 == null) r._km2 = turf.area({ type: 'Feature', properties: {}, geometry: r.geom }) / 1e6; return r._km2; }
+// เกร็ดความรู้ท้ายข้อ: คำนวณจากฐานข้อมูลในแอปล้วนๆ (ไม่อ้างข้อมูลภายนอก)
+function qzFacts(q) {
+  const r = q.rec, g = QZ.groups.get(r._dk), out = [];
+  const km = qzArea(r), fmt = v => v >= 10 ? v.toFixed(0) : v.toFixed(1);
+  const merged = r.alias && r.alias.length;        // รูปนี้รวมหลายแขวงไว้ด้วยกันในข้อมูลแอป → ไม่เอาขนาดมาเทียบ
+  const cnt = g.members.reduce((n, m) => n + 1 + (m.alias ? m.alias.length : 0), 0);
+  // 1) ชื่อซ้ำ
+  if (q.type !== 'dup' && r._gc > 1) {
+    const oth = DB.recs.filter(o => o !== r && o.name === r.name).map(o => o.isBkk ? 'เขต' + o.district : 'อ.' + o.district + ' จ.' + o.prov);
+    out.push(`ชื่อ "${r.name}" ไม่ได้มีที่เดียว ยังมีอีก ${oth.length} แห่ง: ${oth.join(' · ')}`);
+  }
+  // 2) ขนาดเทียบทั้งจังหวัด / ในเขต
+  const pool = DB.recs.filter(o => o.provCode === r.provCode).sort((a, b) => qzArea(b) - qzArea(a));
+  const rk = pool.indexOf(r) + 1, where = r.isBkk ? 'กทม.' : 'จ.' + r.prov;
+  if (!merged && rk <= 3) out.push(`${r.name} ใหญ่เป็นอันดับ ${rk} ของ${where} ในข้อมูลแอป (ราว ${fmt(km)} ตร.กม.)`);
+  else if (!merged && rk > pool.length - 3) out.push(`${r.name} เล็กเป็นอันดับ ${pool.length - rk + 1} ของ${where} ในข้อมูลแอป (ราว ${fmt(km)} ตร.กม.)`);
+  if (!merged && g.members.length >= 3) {
+    const gm = g.members.slice().sort((a, b) => qzArea(b) - qzArea(a));
+    if (gm[0] === r) out.push(`ใหญ่สุดใน${g.distWord}${g.district} (จาก ${gm.length} ${r.unit})`);
+    else if (gm[gm.length - 1] === r) out.push(`เล็กสุดใน${g.distWord}${g.district} (จาก ${gm.length} ${r.unit})`);
+  }
+  // 3) จำนวนเพื่อนบ้าน
+  if (q.type !== 'adj' && q.type !== 'nadj') { const n = qzNbFar(r).nb.length; if (n) out.push(`${r.name} ติดกับราว ${n} ${r.unit}`); }
+  // 4) พื้นฐาน
+  out.push(`${g.distWord}${g.district} มี ${cnt} ${r.unit}`);
+  const p = repOf(r);
+  out.push(`จุดกลาง${r.name}ห่างสนามหลวงราว ${fmt(hav(QZ_CENTER[0], QZ_CENTER[1], p[0], p[1]))} กม.${merged ? '' : ` · พื้นที่ราว ${fmt(km)} ตร.กม.`}`);
+  return out.slice(0, 3);
+}
+function qzKinds() {
+  let ks = QZ.cfg.kinds.filter(k => k !== 'prov' || QZ.cfg.scope === 'all');
+  if (!ks.length) ks = QZ_KINDS.map(k => k[0]).filter(k => k !== 'prov' || QZ.cfg.scope === 'all');
+  return ks;
+}
+function qzPickDup() {
+  const pool = DB.recs.filter(r => r._gc > 1 && (QZ.cfg.scope === 'all' || r.isBkk) && !QZ.used.has(r.id));
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+}
 function qzGen() {
-  for (let t = 0; t < 60; t++) {
-    const r = qzPickRec(); if (!r) return null;
-    const kind = QZ.cfg.kind === 'mix' ? (Math.random() < .5 ? 'adj' : 'dist') : QZ.cfg.kind;
-    const q = kind === 'adj' ? qzAdj(r) : (r._uniq ? qzDist(r) : null);
+  const ks = qzKinds();
+  for (let t = 0; t < 80; t++) {
+    const kind = ks[Math.floor(Math.random() * ks.length)];
+    const r = kind === 'dup' ? qzPickDup() : qzPickRec(); if (!r) return null;
+    let q = null;
+    if (kind === 'adj') q = qzAdj(r);
+    else if (kind === 'nadj') q = qzNadj(r);
+    else if (kind === 'dist') q = r._uniq ? qzDist(r) : null;
+    else if (kind === 'inD') q = qzInD(r);
+    else if (kind === 'map') q = qzMapQ(r);
+    else if (kind === 'near') q = qzNearest(r);
+    else if (kind === 'prov') q = qzProv(r);
+    else if (kind === 'dup') q = qzDup(r);
     if (q) { QZ.used.add(r.id); return q; }
   }
   return null;
@@ -1973,34 +2111,57 @@ function qzLab(rec, txt, clr) {
   return L.marker([p[1], p[0]], { icon: L.divIcon({ className: 'lbl zn', html: `<div class="lb" style="color:${clr}">${esc(txt)}</div>`, iconSize: [0, 0] }), interactive: false, keyboard: false });
 }
 function qzDraw(q, answered, pick) {
-  const m = QZ.map, g = QZ.grp, rend = QZ.rend, r = q.rec;
+  const m = QZ.map, g = QZ.grp, rend = QZ.rend, r = q.rec, T = q.type;
   g.clearLayers();
-  const [x0, y0, x1, y1] = r._bb, w = Math.max(x1 - x0, y1 - y0) * 0.9 + 0.01;
-  const ex = { _bb: [x0 - w, y0 - w, x1 + w, y1 + w] };
+  const bbs = [r._bb];
+  if (T === 'inD') q.grp.members.forEach(o => bbs.push(o._bb));
+  if (T === 'near' && answered) q.choices.forEach(c => bbs.push(c.rec._bb));
+  if (T === 'dup') q.same.forEach(o => bbs.push(o._bb));
+  const fb = [Math.min(...bbs.map(b => b[0])), Math.min(...bbs.map(b => b[1])), Math.max(...bbs.map(b => b[2])), Math.max(...bbs.map(b => b[3]))];
+  const w = Math.max(fb[2] - fb[0], fb[3] - fb[1]) * 0.9 + 0.01;
+  const ex = [fb[0] - w, fb[1] - w, fb[2] + w, fb[3] + w];
   const poly = (o, st) => L.polygon(latlngsOf(o), Object.assign({ renderer: rend, interactive: false }, st)).addTo(g);
+  const GREEN = { color: '#0b6b3a', weight: 2, fillColor: '#12a154', fillOpacity: .4 };
+  const RED = { color: '#c8321f', weight: 2.5, fillColor: '#c8321f', fillOpacity: .35 };
+  const AMB = { color: '#b58900', weight: 2, fillColor: '#f2c12e', fillOpacity: .3 };
+  const BLUE = { color: '#1746a2', weight: 4, fillColor: '#1746a2', fillOpacity: .22 };
   for (const o of DB.recs) {
-    if (o === r || o._bb[0] > ex._bb[2] || o._bb[2] < ex._bb[0] || o._bb[1] > ex._bb[3] || o._bb[3] < ex._bb[1]) continue;
+    if (o._bb[0] > ex[2] || o._bb[2] < ex[0] || o._bb[1] > ex[3] || o._bb[3] < ex[1]) continue;
     poly(o, { color: '#8a949b', weight: .8, fillColor: '#fff', fillOpacity: .25 });
   }
-  let bounds = [[y0 - w, x0 - w], [y1 + w, x1 + w]];
-  if (answered) {
-    if (q.type === 'adj') {
-      q.nb.forEach(o => { poly(o, { color: '#0b6b3a', weight: 2, fillColor: '#12a154', fillOpacity: .4 }); qzLab(o, o.name, '#0b6b3a').addTo(g); });
-      const bad = pick != null ? q.choices[pick].rec : null;
-      if (bad && !q.nb.includes(bad)) { poly(bad, { color: '#c8321f', weight: 2.5, fillColor: '#c8321f', fillOpacity: .35 }); qzLab(bad, bad.name, '#8c1220').addTo(g); }
-    } else {
-      const chosen = pick != null ? q.choices[pick].grp : null;
-      if (chosen && chosen !== q.grp) chosen.members.forEach(o => poly(o, { color: '#c8321f', weight: 1.5, fillColor: '#c8321f', fillOpacity: .3 }));
-      q.grp.members.forEach(o => poly(o, { color: '#0b6b3a', weight: 1.5, fillColor: '#12a154', fillOpacity: .4 }));
-      const gb = L.latLngBounds([]); q.grp.members.forEach(o => gb.extend([[o._bb[1], o._bb[0]], [o._bb[3], o._bb[2]]]));
-      gb.extend(bounds); bounds = gb;
-    }
-    poly(r, { color: '#1746a2', weight: 4, fillColor: '#1746a2', fillOpacity: .2 });
-    qzLab(r, r.name, '#1746a2').addTo(g);
-  } else {
-    poly(r, { color: '#1746a2', weight: 4, fillColor: '#1746a2', fillOpacity: .25 });
+  const chosen = pick != null ? q.choices[pick] : null;
+  if (!answered) {
+    if (T !== 'inD' && T !== 'dup') poly(r, BLUE);
+  } else if (T === 'adj') {
+    q.nb.forEach(o => { poly(o, GREEN); qzLab(o, o.name, '#0b6b3a').addTo(g); });
+    if (chosen && !q.nb.includes(chosen.rec)) { poly(chosen.rec, RED); qzLab(chosen.rec, chosen.rec.name, '#8c1220').addTo(g); }
+    poly(r, BLUE); qzLab(r, r.name, '#1746a2').addTo(g);
+  } else if (T === 'nadj') {
+    q.nb.forEach(o => { poly(o, GREEN); qzLab(o, o.name, '#0b6b3a').addTo(g); });
+    poly(q.okRec, AMB); qzLab(q.okRec, q.okRec.name, '#6b5200').addTo(g);
+    poly(r, BLUE); qzLab(r, r.name, '#1746a2').addTo(g);
+  } else if (T === 'dist') {
+    if (chosen && chosen.grp !== q.grp) chosen.grp.members.forEach(o => poly(o, Object.assign({}, RED, { weight: 1.5, fillOpacity: .3 })));
+    q.grp.members.forEach(o => poly(o, Object.assign({}, GREEN, { weight: 1.5 })));
+    poly(r, BLUE); qzLab(r, r.name, '#1746a2').addTo(g);
+  } else if (T === 'inD') {
+    q.grp.members.forEach(o => poly(o, Object.assign({}, GREEN, { weight: 1.5 })));
+    if (chosen && !chosen.ok) { poly(chosen.rec, RED); qzLab(chosen.rec, chosen.rec.name, '#8c1220').addTo(g); }
+    poly(r, BLUE); qzLab(r, r.name, '#1746a2').addTo(g);
+  } else if (T === 'dup') {
+    q.same.forEach(o => { poly(o, GREEN); qzLab(o, `${o.name} · ${o.isBkk ? 'เขต' + o.district : 'อ.' + o.district}`, '#0b6b3a').addTo(g); });
+    if (chosen && !chosen.ok) { poly(chosen.rec, RED); qzLab(chosen.rec, `${chosen.rec.name} (มีที่เดียว)`, '#8c1220').addTo(g); }
+  } else if (T === 'near') {
+    q.choices.forEach(c => {
+      poly(c.rec, c.ok ? GREEN : (c === chosen ? RED : AMB));
+      qzLab(c.rec, `${c.rec.name} · ${c.km.toFixed(1)} กม.`, c.ok ? '#0b6b3a' : (c === chosen ? '#8c1220' : '#6b5200')).addTo(g);
+    });
+    poly(r, BLUE); qzLab(r, r.name, '#1746a2').addTo(g);
+  } else {                                   // map / prov
+    if (T === 'map' && chosen && !chosen.ok) { poly(chosen.rec, RED); qzLab(chosen.rec, chosen.rec.name, '#8c1220').addTo(g); }
+    poly(r, BLUE); qzLab(r, r.name, '#1746a2').addTo(g);
   }
-  m.fitBounds(bounds, { animate: false, padding: [6, 6] });
+  m.fitBounds([[ex[1], ex[0]], [ex[3], ex[2]]], { animate: false, padding: [6, 6] });
 }
 
 function qzShowQ() {
@@ -2013,7 +2174,8 @@ function qzShowQ() {
   const L3 = ['ก', 'ข', 'ค', 'ง'];
   $('qz-c').innerHTML = q.choices.map((c, i) => `<button class="qzch" type="button" data-i="${i}"><b>${L3[i]}</b><span>${esc(c.label)}${c.sub ? `<span class="s">${esc(c.sub)}</span>` : ''}</span></button>`).join('');
   $('qz-fb').hidden = true; $('qz-next').hidden = true;
-  qzMap(); qzDraw(q, false);
+  $('qz-map').parentElement.hidden = q.type === 'dup';
+  qzMap(); if (q.type !== 'dup') qzDraw(q, false);
 }
 function qzAnswer(i) {
   if (QZ.done || !QZ.cur) return; QZ.done = true;
@@ -2029,7 +2191,10 @@ function qzAnswer(i) {
   QZ.results.push({ rec: q.rec, ok, ans: q.ans });
   $('qz-score').textContent = `ข้อ ${QZ.i + 1}/${QZ.N} · ถูก ${QZ.score}`;
   $('qz-bar').style.width = ((QZ.i + 1) / QZ.N * 100) + '%';
+  $('qz-map').parentElement.hidden = false; qzMap();
   qzDraw(q, true, i);
+  let facts = []; try { facts = qzFacts(q); } catch (e) { /* ไม่มีเกร็ดก็ไม่เป็นไร */ }
+  if (facts.length) fb.innerHTML += `<div class="qzfact">${facts.map(f => '💡 ' + esc(f)).join('<br>')}</div>`;
   const nx = $('qz-next'); nx.hidden = false; nx.textContent = QZ.i + 1 >= QZ.N ? 'ดูผล' : 'ข้อต่อไป';
   nx.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
@@ -2054,15 +2219,27 @@ function qzStart() {
 function qzSetup() {
   $('qz-play').hidden = true; $('qz-end').hidden = true; $('qz-setup').hidden = false;
   $('qz-score').textContent = '';
-  ['scope', 'kind'].forEach(k => $('qzo-' + k).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === QZ.cfg[k]))));
+  $('qzo-scope').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === QZ.cfg.scope)));
+  const allOn = QZ.cfg.kinds.length === QZ_KINDS.length;
+  $('qzo-kind').innerHTML = `<button type="button" class="all" data-v="all" aria-pressed="${allOn}">ทุกแบบ</button>` +
+    QZ_KINDS.map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${!allOn && QZ.cfg.kinds.includes(v)}"${v === 'prov' && QZ.cfg.scope === 'bkk' ? ' class="off"' : ''}>${t}</button>`).join('');
   const b = QZ.cfg.best[QZ.cfg.scope] || 0;
   $('qz-best').textContent = b ? `คะแนนสูงสุด (${QZ.cfg.scope === 'bkk' ? 'กทม.' : 'รวมปริมณฑล'}): ${b}/10` : '';
 }
 function qzInit() {
-  ['scope', 'kind'].forEach(k => $('qzo-' + k).addEventListener('click', e => {
+  $('qzo-scope').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    QZ.cfg[k] = b.dataset.v; qzSave(); qzSetup();
-  }));
+    QZ.cfg.scope = b.dataset.v; qzSave(); qzSetup();
+  });
+  $('qzo-kind').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const v = b.dataset.v, all = QZ_KINDS.map(k => k[0]);
+    const allOn = QZ.cfg.kinds.length === all.length;
+    if (v === 'all') QZ.cfg.kinds = all;
+    else if (allOn) QZ.cfg.kinds = [v];                       // จากโหมด "ทุกแบบ" แตะแบบไหน = เลือกเฉพาะแบบนั้น
+    else { const st = new Set(QZ.cfg.kinds); if (st.has(v)) { if (st.size > 1) st.delete(v); } else st.add(v); QZ.cfg.kinds = [...st]; }
+    qzSave(); qzSetup();
+  });
   $('qz-start').addEventListener('click', qzStart);
   $('qz-c').addEventListener('click', e => { const b = e.target.closest('.qzch'); if (b) qzAnswer(+b.dataset.i); });
   $('qz-next').addEventListener('click', () => { QZ.i++; if (QZ.i >= QZ.N) qzEnd(); else qzShowQ(); });
