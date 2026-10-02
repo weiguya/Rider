@@ -178,6 +178,11 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .lbl.passed .lb{color:#7b827d}
 .lbl.passed .n{background:rgba(139,145,140,.85)}
 .zlow .lbl.near{display:none}
+.lbl.zn .lb{font-weight:600;font-size:11.5px}
+.zleg{position:absolute;left:8px;bottom:8px;z-index:500;display:grid;grid-template-columns:auto auto;gap:3px 12px;padding:6px 9px;
+  background:rgba(255,255,255,.93);border:1px solid var(--line);border-radius:10px;font-size:10.5px;font-weight:600;line-height:1.2;pointer-events:none}
+.zleg[hidden]{display:none}
+.zleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .pin .pb{position:absolute;transform:translate(-50%,calc(-100% - 6px));padding:4px 10px;border-radius:8px;color:#fff;
   font:700 14px/1.2 Prompt,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.45);white-space:nowrap}
 .pin .pb::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0}
@@ -342,7 +347,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.10</span>
+      <span class="ver">Ver.11</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-db" type="button" aria-label="รายชื่อแขวง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span>รายชื่อ</span>
@@ -374,9 +379,11 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <div class="mapwrap">
     <div id="map" aria-label="แผนที่เส้นทางและขอบเขตแขวง"></div>
     <div class="mapbtns">
+      <button class="mbtn" id="btn-zone" type="button" aria-pressed="false">ทุกแขวง</button>
       <button class="mbtn" id="btn-fit" type="button">ดูทั้งเส้น</button>
       <button class="mbtn" id="btn-follow" type="button" aria-pressed="false">ตามตำแหน่งฉัน</button>
     </div>
+    <div class="zleg" id="zleg" hidden></div>
   </div>
 
   <!-- ================== HTML STRUCTURE 3: ผลลัพธ์ ================== -->
@@ -819,6 +826,16 @@ const S = {
 };
 let map, gPoly, gLbl, gRoute, meMk, meAcc, pinO, pinD;
 const polyLayer = new Map(), lblLayer = new Map();
+const ZN = { on: false, built: false, layer: null, lbl: null };
+// สีโซนจังหวัด — เลี่ยงเขียว/เหลือง/น้ำเงิน (สีของเส้นทาง ทางผ่าน ใกล้เคียง)
+const ZONE_CLR = {
+  10: { f:'#8e44ad', t:'#5b2478', n:'กรุงเทพฯ' },      // ม่วง
+  12: { f:'#ec5fa5', t:'#9c1d62', n:'นนทบุรี' },        // ชมพู
+  13: { f:'#f06a1a', t:'#9a3d00', n:'ปทุมธานี' },       // ส้ม
+  11: { f:'#12b5cb', t:'#08707f', n:'สมุทรปราการ' },    // ฟ้าน้ำทะเล
+  74: { f:'#9a6a46', t:'#5e3a1c', n:'สมุทรสาคร' },      // น้ำตาล
+  73: { f:'#d62839', t:'#8c1220', n:'นครปฐม' }          // แดง
+};
 
 /* ---------- loader: ลอง CDN สำรองอัตโนมัติ ---------- */
 function loadScript(urls) {
@@ -1081,6 +1098,7 @@ async function boot() {
   $('btn-img').addEventListener('click', saveImage);
   $('btn-sim').addEventListener('click', () => (S.simulating ? stopSim() : startSim()));
   $('btn-fit').addEventListener('click', fitAll);
+  $('btn-zone').addEventListener('click', () => setZones(!ZN.on));
   $('btn-follow').addEventListener('click', () => setFollow(!S.follow));
   document.querySelectorAll('#radius-seg button').forEach(b => b.addEventListener('click', () => setRadius(+b.dataset.r)));
   $('list-main').addEventListener('click', cardClick);
@@ -1099,6 +1117,8 @@ async function boot() {
       });
     }
   } catch (e) { /* ไม่เป็นไร */ }
+
+  try { if (localStorage.getItem('rider.zones') === '1') setZones(true, false); } catch (e) { /* ignore */ }   // จำสถานะโหมดทุกแขวง
 }
 
 /* ---------- map ---------- */
@@ -1106,11 +1126,13 @@ function initMap() {
   map = L.map('map', { zoomControl: false }).setView([13.7563, 100.5018], 11);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   L.tileLayer(CONFIG.TILE_URL, { subdomains: 'abc', maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
+  map.createPane('zonePane').style.zIndex = 300;        // โซนทุกแขวงอยู่ล่างสุด
   map.createPane('polyPane').style.zIndex = 350;       // ขอบเขตแขวงอยู่ใต้เส้นทาง
   map.createPane('routePane').style.zIndex = 450;
   gPoly = L.layerGroup().addTo(map); gRoute = L.layerGroup().addTo(map); gLbl = L.layerGroup().addTo(map);
   const zc = () => { const z = map.getZoom(), c = $('map').classList; c.toggle('zlow', z < 12); };
   map.on('zoomend', zc); zc();
+  map.on('moveend', () => { if (ZN.on) refreshZoneLabels(); });
   map.on('dragstart', () => { if (S.follow) setFollow(false); });   // ลากแผนที่เอง = เลิกตาม
 }
 function pinIcon(kind, text) {
@@ -1126,6 +1148,48 @@ function polyStyle(kind) {
   return { color: '#0b6b3a', weight: 2.5, dashArray: null, fillColor: '#0b6b3a', fillOpacity: .2 };
 }
 function lblIcon(cls, html) { return L.divIcon({ className: 'lbl ' + cls, html: `<div class="lb">${html}</div>`, iconSize: [0, 0] }); }
+
+/* ---------- โหมด "ทุกแขวง": ระบายสีทุกแขวงแยกตามจังหวัด ไว้ศึกษาพื้นที่ ---------- */
+function buildZones() {
+  const rend = L.canvas({ pane: 'zonePane', padding: .3 });
+  ZN.layer = L.layerGroup(); ZN.lbl = L.layerGroup();
+  for (const r of DB.recs) {
+    const c = ZONE_CLR[r.provCode]; if (!c) continue;
+    const pg = L.polygon(latlngsOf(r), { renderer: rend, pane: 'zonePane', color: c.t, weight: 1, opacity: .75, fillColor: c.f, fillOpacity: .3, interactive: true });
+    pg.on('click', e => {
+      L.popup({ closeButton: false, autoPan: false }).setLatLng(e.latlng)
+        .setContent(`<b>${esc(r.name)}</b><br>${r.distWord}${esc(r.district)} · ${r.isBkk ? 'กรุงเทพฯ' : 'จ.' + esc(r.prov)}`).openOn(map);
+    });
+    pg.addTo(ZN.layer);
+  }
+  $('zleg').innerHTML = PROV_ORDER.map(k => `<span><i style="background:${ZONE_CLR[k].f}"></i>${ZONE_CLR[k].n}</span>`).join('');
+  ZN.built = true;
+}
+function refreshZoneLabels() {
+  if (!ZN.lbl) return;
+  ZN.lbl.clearLayers();
+  if (!ZN.on || map.getZoom() < 13) return;
+  const b = map.getBounds().pad(.1);
+  let n = 0;
+  for (const r of DB.recs) {
+    const c = ZONE_CLR[r.provCode]; if (!c) continue;
+    const p = repOf(r);
+    if (!b.contains([p[1], p[0]])) continue;
+    if (lblLayer.has(r.id) || (dbPreview && dbPreview.id === r.id)) continue;   // แขวงที่มีป้ายเส้นทาง/พรีวิวอยู่แล้ว ไม่ซ้ำ
+    if (++n > 200) break;
+    L.marker([p[1], p[0]], { icon: L.divIcon({ className: 'lbl zn', html: `<div class="lb" style="color:${c.t}">${esc(r.name)}</div>`, iconSize: [0, 0] }), interactive: false, keyboard: false }).addTo(ZN.lbl);
+  }
+}
+function setZones(on, save) {
+  if (!DB.recs || !DB.recs.length) return;
+  if (on && !ZN.built) buildZones();
+  ZN.on = !!on;
+  if (on) { ZN.layer.addTo(map); ZN.lbl.addTo(map); } else { map.removeLayer(ZN.layer); map.removeLayer(ZN.lbl); map.closePopup(); }
+  $('btn-zone').setAttribute('aria-pressed', String(!!on));
+  $('zleg').hidden = !on;
+  refreshZoneLabels();
+  if (save !== false) { try { localStorage.setItem('rider.zones', on ? '1' : '0'); } catch (e) { /* ignore */ } }
+}
 
 function drawRoute() {
   gRoute.clearLayers();
@@ -1149,6 +1213,7 @@ function drawAreas() {
   };
   S.near.forEach(n => add(n.rec, 'near', esc(n.rec.name)));
   S.main.forEach(m => add(m.rec, 'main', `<span class="n">${m.order}</span><span class="t">${esc(m.rec.name)}</span>`));
+  if (ZN.on) refreshZoneLabels();
 }
 function fitAll() {
   if (!S.route) return;
@@ -1265,6 +1330,7 @@ function clearResults() {
   S.route = null; S.stops = []; S.stopNos = new Map(); S.main = []; S.near = []; S.forward = []; S.mainOrder = new Map();
   resetTracking();
   gRoute.clearLayers(); gPoly.clearLayers(); gLbl.clearLayers(); polyLayer.clear(); lblLayer.clear();
+  if (ZN.on) refreshZoneLabels();
   $('out').hidden = true; $('empty').hidden = false;
   setStatus('');
 }
@@ -1281,6 +1347,7 @@ function resetAll() {
   gRoute.clearLayers(); gPoly.clearLayers(); gLbl.clearLayers(); polyLayer.clear(); lblLayer.clear();
   if (meMk) { map.removeLayer(meMk); map.removeLayer(meAcc); meMk = null; meAcc = null; }
   if (dbPreview) { map.removeLayer(dbPreview.poly); map.removeLayer(dbPreview.lbl); dbPreview = null; }
+  if (ZN.on) refreshZoneLabels();
   $('out').hidden = true; $('empty').hidden = false;
   setStatus('');
   try { localStorage.removeItem('rider.last'); } catch (e) { /* ignore */ }
@@ -1709,6 +1776,7 @@ function previewRec(rec) {
   const rp = repOf(rec);
   const lbl = L.marker([rp[1], rp[0]], { icon: lblIcon('main', esc(rec.name)), interactive: false }).addTo(map);
   dbPreview = { poly, lbl, id: rec.id };
+  setZones(true);                       // จิ้มจากฐานข้อมูล = เปิดโหมดทุกแขวงให้อัตโนมัติ
   map.invalidateSize();
   map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 15 });
   setStatus(`กำลังดู ${rec.name} (${rec.distWord}${rec.district}) บนแผนที่ — กดคำนวณเส้นทางเพื่อเริ่มงานจริง`);
