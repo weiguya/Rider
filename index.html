@@ -56,7 +56,15 @@ button{cursor:pointer}
    ===================================================================== */
 h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .titlerow{display:flex;align-items:center;gap:8px}
-.tbtns{margin-left:auto;display:flex;gap:6px}
+.tbtns{margin-left:auto;display:flex;gap:6px;position:relative}
+.tbtn.ico{width:38px;padding:0;display:grid;place-items:center}
+.tbtn[aria-expanded="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:210px;padding:6px;display:grid;gap:2px;
+  background:#fff;border:1.5px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.menu button{min-height:46px;padding:0 12px;border:0;border-radius:9px;background:transparent;text-align:left;font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+.menu button:active{background:#eceff1}
+.menu svg{flex:none;width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dbview.qzmode .dbfld,.dbview.qzmode .dbseg,.dbview.qzmode .dbfacets,.dbview.qzmode .dblegend,.dbview.qzmode #dbgrid,.dbview.qzmode #dblist{display:none!important}
 .tbtn{min-height:34px;padding:0 10px;border:1.5px solid var(--line);border-radius:9px;background:#fff;font-size:12.5px;font-weight:700;
   display:flex;align-items:center;gap:4px;color:var(--ink)}
 .tbtn:active{background:#eceff1}
@@ -179,6 +187,37 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .lbl.passed .n{background:rgba(139,145,140,.85)}
 .zlow .lbl.near{display:none}
 .lbl.zn .lb{font-weight:600;font-size:11.5px}
+/* ---- แบบทดสอบ ---- */
+.qzscore{margin:0 0 8px;text-align:right;font-size:13px;font-weight:700;color:var(--ink-2)}
+.qzscore:empty{display:none}
+.qzbody{flex:1;min-width:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(env(safe-area-inset-bottom) + 24px)}
+.qzh{margin:4px 0 8px;font-size:15px;font-weight:700}
+.qzopts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.qzopts button{flex:1;min-height:48px;padding:0 10px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:15px;font-weight:700}
+.qzopts button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.qzbest{margin:0 0 12px;font-size:14px;color:var(--ink-2)}
+.qzprog{height:6px;border-radius:3px;background:#d3d8dc;margin-bottom:10px;overflow:hidden}
+.qzprog div{height:100%;width:0;background:var(--ink);transition:width .25s}
+.qzmapwrap{position:relative}
+#qz-map{height:32svh;min-height:200px;border-radius:14px;border:1px solid var(--line);background:#dde3e7}
+.qzroad{position:absolute;right:8px;top:8px;z-index:500;min-height:34px;padding:0 12px;border:1.5px solid var(--line);border-radius:9px;background:#fff;font-size:12.5px;font-weight:700}
+.qzroad[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.qzq{margin:14px 0 10px;font-size:19px;font-weight:700;line-height:1.35}
+.qzq small{display:block;margin-top:2px;font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.qzch{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;margin:0 0 9px;padding:8px 14px;border:2px solid var(--line);border-radius:14px;background:#fff;text-align:left;font-size:17px;font-weight:700}
+.qzch b{flex:none;width:30px;height:30px;border-radius:50%;background:#eceff1;display:grid;place-items:center;font-size:14px}
+.qzch .s{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.qzch.ok{border-color:var(--green);background:#e3f4ea}.qzch.ok b{background:var(--green);color:#fff}
+.qzch.bad{border-color:var(--red);background:#fdeae6}.qzch.bad b{background:var(--red);color:#fff}
+.qzch:disabled:not(.ok):not(.bad){opacity:.5}
+.qzfb{margin:4px 0 10px;padding:12px 14px;border-radius:12px;background:#fff;border:2px solid var(--line);font-size:15px;line-height:1.45}
+.qzfb.ok{border-color:var(--green)}.qzfb.bad{border-color:var(--red)}
+.qzfb b{font-weight:700}
+.qzbig{margin:18px 0 4px;text-align:center;font-size:56px;font-weight:800}
+.qzmsg{margin:0 0 16px;text-align:center;font-size:17px;font-weight:600}
+.qzrow{display:block;width:100%;margin:0 0 8px;padding:10px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;text-align:left;font-size:15px}
+.qzrow span{display:block;font-size:13px;color:var(--ink-2)}
+.qzbtn2{width:100%;min-height:52px;margin-top:10px;border:2px solid var(--ink);border-radius:14px;background:#fff;font-size:17px;font-weight:700}
 .zleg{position:absolute;left:8px;bottom:8px;z-index:500;display:grid;grid-template-columns:auto auto;gap:3px 12px;padding:6px 9px;
   background:rgba(255,255,255,.93);border:1px solid var(--line);border-radius:10px;font-size:10.5px;font-weight:600;line-height:1.2;pointer-events:none}
 .zleg[hidden]{display:none}
@@ -347,14 +386,18 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.12</span>
+      <span class="ver">Ver.15</span>
       <div class="tbtns">
-        <button class="tbtn" id="btn-db" type="button" aria-label="รายชื่อแขวง">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span>รายชื่อ</span>
-        </button>
         <button class="tbtn" id="btn-reset" type="button" aria-label="รีเซ็ทเส้นทาง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><span>รีเซ็ต</span>
         </button>
+        <button class="tbtn ico" id="btn-menu" type="button" aria-label="เมนู" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="menu" id="menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-act="db"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>รายชื่อแขวง</button>
+          <button type="button" role="menuitem" data-act="qz"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></svg>เกมทดสอบความจำ</button>
+        </div>
       </div>
     </div>
     <p class="tagline">ดูว่าเส้นทางผ่านแขวงไหนบ้าง ก่อนรับงานซ้อน</p>
@@ -442,7 +485,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
         <button class="dbback" id="db-back" type="button" aria-label="ปิดฐานข้อมูล">
           <svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></svg>
         </button>
-        <h2>ฐานข้อมูลแขวง/ตำบล</h2>
+        <h2 id="db-title">ฐานข้อมูลแขวง/ตำบล</h2>
       </div>
       <div class="dbfld">
         <input id="db-q" type="text" placeholder="ค้นหาเขต/อำเภอ หรือ แขวง/ตำบล" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -472,6 +515,26 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
     </div>
     <div class="dblist" id="dbgrid"></div>
     <div class="dblist" id="dblist" hidden></div>
+    <div class="qzbody" id="qzbody" hidden>
+      <div class="qzscore" id="qz-score"></div>
+      <div id="qz-setup">
+        <div class="qzh">ขอบเขต</div>
+        <div class="qzopts" id="qzo-scope"><button type="button" data-v="bkk">กทม.</button><button type="button" data-v="all">รวมปริมณฑล</button></div>
+        <div class="qzh">แบบคำถาม</div>
+        <div class="qzopts" id="qzo-kind"><button type="button" data-v="mix">ผสม</button><button type="button" data-v="adj">ติดกับแขวงไหน</button><button type="button" data-v="dist">อยู่เขตอะไร</button></div>
+        <p class="qzbest" id="qz-best"></p>
+        <button class="go" id="qz-start" type="button">เริ่ม 10 ข้อ</button>
+      </div>
+      <div id="qz-play" hidden>
+        <div class="qzprog"><div id="qz-bar"></div></div>
+        <div class="qzmapwrap"><div id="qz-map"></div><button class="qzroad" id="qz-road" type="button" aria-pressed="false">ถนน</button></div>
+        <div class="qzq" id="qz-q"></div>
+        <div id="qz-c"></div>
+        <div class="qzfb" id="qz-fb" hidden></div>
+        <button class="go" id="qz-next" type="button" hidden>ข้อต่อไป</button>
+      </div>
+      <div id="qz-end" hidden></div>
+    </div>
   </section>
 </div>
 
@@ -960,7 +1023,7 @@ function addStop() {
   fields.insertBefore(el, add);
   const st = { el, del: null, input: el.querySelector('input'), mic: el.querySelector('.fmic') };
   st.p = makePicker(st.input, el.querySelector('.sg'), el.querySelector('.clr'), () => scheduleAutoCalc(),
-    first ? { label: 'ตำแหน่งฉัน', sub: 'ใช้ GPS เป็นจุดที่ 1', run: () => useMyLocation() } : undefined);
+    { label: 'ตำแหน่งฉัน', get sub() { return 'ใช้ GPS เป็นจุดที่ ' + (stops.indexOf(st) + 1); }, run: () => useMyLocation(st) });
   st.mic.addEventListener('click', () => toggleVoice(st));
   wireDrag(st);
   st.input.addEventListener('keydown', e => { if (e.key === 'Enter' && el.querySelector('.sg').hidden) { clearTimeout(acTimer); calculate(); } });
@@ -1099,6 +1162,7 @@ async function boot() {
   $('btn-sim').addEventListener('click', () => (S.simulating ? stopSim() : startSim()));
   $('btn-fit').addEventListener('click', fitAll);
   $('btn-zone').addEventListener('click', () => setZones(!ZN.on));
+  qzInit();
   $('btn-follow').addEventListener('click', () => setFollow(!S.follow));
   document.querySelectorAll('#radius-seg button').forEach(b => b.addEventListener('click', () => setRadius(+b.dataset.r)));
   $('list-main').addEventListener('click', cardClick);
@@ -1247,7 +1311,8 @@ async function explainGeoError(e) {
 }
 const getPos = opts => new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, opts));
 
-async function useMyLocation() {
+async function useMyLocation(st) {
+  st = st || stops[0];
   if (!navigator.geolocation) { setStatus('เครื่องนี้ไม่รองรับ GPS', true); return; }
   if (location.protocol === 'file:' || !window.isSecureContext) { setStatus(await explainGeoError(), true); return; }
   setStatus('กำลังหาตำแหน่งปัจจุบัน…');
@@ -1259,7 +1324,7 @@ async function useMyLocation() {
     catch (e2) { setStatus(await explainGeoError(e2), true); return; }
   }
   const lng = p.coords.longitude, lat = p.coords.latitude, rec = locate(lng, lat);
-  stops[0].p.setPlace({ rec, lng, lat, label: rec ? rec.label : 'ตำแหน่งปัจจุบัน (นอกพื้นที่ข้อมูล)' });
+  st.p.setPlace({ rec, lng, lat, label: rec ? rec.label : 'ตำแหน่งปัจจุบัน (นอกพื้นที่ข้อมูล)' });
   setStatus(rec ? '' : 'ตำแหน่งนี้อยู่นอกพื้นที่ กทม.และปริมณฑล');
 }
 
@@ -1792,8 +1857,236 @@ function previewRec(rec) {
   if (window.matchMedia('(max-width:899px)').matches) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function openDirectory() {
-  const v = $('dbview'); v.classList.add('open'); v.setAttribute('aria-hidden', 'false');
+/* ---------- แบบทดสอบความจำแขวง: ติดกับแขวงไหน / อยู่เขตอะไร (สุ่มสดจากฐานข้อมูล) ---------- */
+const QZ = { cfg: { scope: 'bkk', kind: 'mix', best: { bkk: 0, all: 0 }, wrong: [] }, N: 10, i: 0, score: 0, used: new Set(), cur: null, done: false, results: [], map: null, grp: null, rend: null, tiles: null, groups: null, ready: false };
+try { const c = JSON.parse(localStorage.getItem('rider.quiz') || '{}'); Object.assign(QZ.cfg, c); QZ.cfg.best = Object.assign({ bkk: 0, all: 0 }, c.best || {}); if (!Array.isArray(QZ.cfg.wrong)) QZ.cfg.wrong = []; } catch (e) { /* ignore */ }
+const qzSave = () => { try { localStorage.setItem('rider.quiz', JSON.stringify(QZ.cfg)); } catch (e) { /* ignore */ } };
+const qzKey = r => r.provCode + '|' + r.district + '|' + r.name;
+const qzShuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const qzSub = r => r.isBkk ? `เขต${r.district}` : `อำเภอ${r.district} จ.${r.prov}`;
+
+function qzPrep() {
+  if (QZ.ready) return;
+  QZ.groups = new Map(); QZ.byKey = new Map();
+  const cnt = new Map();
+  for (const r of DB.recs) {
+    const p = repOf(r);
+    r._dk = r.provCode + '|' + r.district;
+    let g = QZ.groups.get(r._dk);
+    if (!g) { g = { key: r._dk, district: r.district, prov: r.prov, provCode: r.provCode, isBkk: r.isBkk, distWord: r.distWord, members: [], cx: 0, cy: 0 }; QZ.groups.set(r._dk, g); }
+    g.members.push(r); g.cx += p[0]; g.cy += p[1];
+    const k = r.provCode + '|' + r.name; cnt.set(k, (cnt.get(k) || 0) + 1);
+    r._bb = turf.bbox({ type: 'Feature', properties: {}, geometry: r.geom });
+    QZ.byKey.set(qzKey(r), r);
+  }
+  QZ.groups.forEach(g => { g.cx /= g.members.length; g.cy /= g.members.length; });
+  DB.recs.forEach(r => { r._uniq = cnt.get(r.provCode + '|' + r.name) === 1; });   // ชื่อไม่ซ้ำในจังหวัดเดียวกัน → ถามได้ไม่กำกวม
+  QZ.ready = true;
+}
+function qzRings(r) {
+  if (!r._rg) { const g = r.geom, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates; r._rg = []; polys.forEach(pl => pl.forEach(rg => r._rg.push(rg))); }
+  return r._rg;
+}
+function qzSegD2(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy; let t = 0;
+  if (l > 0) { t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l; t = t < 0 ? 0 : t > 1 ? 1 : t; }
+  const x = a[0] + t * dx - p[0], y = a[1] + t * dy - p[1]; return x * x + y * y;
+}
+// จุดยอดของ a ตัวไหนอยู่ห่างขอบ b ไม่เกิน eps (องศา) = ขอบชนกัน
+function qzNear(a, b, eps) {
+  const e2 = eps * eps, bb = b._bb;
+  for (const rg of qzRings(a)) for (const p of rg) {
+    if (p[0] < bb[0] - eps || p[0] > bb[2] + eps || p[1] < bb[1] - eps || p[1] > bb[3] + eps) continue;
+    for (const rb of qzRings(b)) for (let k = 1; k < rb.length; k++) if (qzSegD2(p, rb[k - 1], rb[k]) < e2) return true;
+  }
+  return false;
+}
+const qzBBhit = (a, b, e) => !(b._bb[0] > a._bb[2] + e || b._bb[2] < a._bb[0] - e || b._bb[1] > a._bb[3] + e || b._bb[3] < a._bb[1] - e);
+
+function qzAdj(r) {
+  const E = 0.0012, F = 0.004;                      // ~130 ม. = ติดกัน / ~440 ม. = กำกวม (ไม่ใช้เป็นตัวหลอก)
+  const nb = [];
+  for (const o of DB.recs) { if (o === r || !qzBBhit(r, o, F)) continue; if (qzNear(r, o, E) || qzNear(o, r, E)) nb.push(o); }
+  if (!nb.length) return null;
+  const ok = nb[Math.floor(Math.random() * nb.length)];
+  let far = [];
+  for (const w of [0.05, 0.1, 0.25]) {
+    far = DB.recs.filter(o => o !== r && o.name !== ok.name && o.name !== r.name && !qzBBhit(r, o, F) && qzBBhit(r, o, w));
+    if (far.length >= 3) break;
+  }
+  const ds = []; const names = new Set([ok.name]);
+  for (const o of qzShuffle(far)) { if (names.has(o.name)) continue; names.add(o.name); ds.push(o); if (ds.length === 3) break; }
+  if (ds.length < 3) return null;
+  const choices = qzShuffle([ok, ...ds]).map(o => ({ rec: o, label: o.name, sub: qzSub(o), ok: o === ok }));
+  const nbNames = nb.map(o => o.name);
+  return { type: 'adj', rec: r, nb, okRec: ok, choices,
+    text: `ข้อไหน<b>ติดกับ</b> ${r.unit}${esc(r.name)}?<small>${esc(qzSub(r))}</small>`,
+    ans: `${r.unit}${r.name} ติดกับ ${nbNames.slice(0, 8).join(', ')}${nbNames.length > 8 ? ` …(รวม ${nbNames.length} แห่ง)` : ''}` };
+}
+function qzDist(r) {
+  const g = QZ.groups.get(r._dk);
+  const d = x => hav(g.cx, g.cy, x.cx, x.cy);
+  const all = [...QZ.groups.values()].filter(x => x !== g);
+  let near = all.filter(x => x.provCode === g.provCode).sort((a, b) => d(a) - d(b));
+  let padded = false;
+  let ds = qzShuffle(near.slice(0, 5)).slice(0, 3);
+  if (ds.length < 3) {                              // จังหวัดที่มีอำเภอน้อย: เติมตัวหลอกจากจังหวัดใกล้เคียง (ติดชื่อจังหวัดกำกับทุกข้อ)
+    padded = true;
+    const extra = all.filter(x => x.provCode !== g.provCode).sort((a, b) => d(a) - d(b)).slice(0, 4);
+    ds = ds.concat(qzShuffle(extra).slice(0, 3 - ds.length));
+  }
+  if (ds.length < 3) return null;
+  const choices = qzShuffle([g, ...ds]).map(x => ({ grp: x, label: `${x.distWord}${x.district}`, sub: padded ? `จ.${x.prov}` : '', ok: x === g }));
+  return { type: 'dist', rec: r, grp: g, choices,
+    text: `${r.unit}${esc(r.name)}${r.isBkk ? '' : ' จ.' + esc(r.prov)} อยู่<b>${r.distWord}</b>อะไร?`,
+    ans: `${r.unit}${r.name} อยู่${g.distWord}${g.district}` };
+}
+function qzPickRec() {
+  const pool = DB.recs.filter(r => (QZ.cfg.scope === 'all' || r.isBkk) && !QZ.used.has(r.id));
+  if (QZ.cfg.wrong.length && Math.random() < 0.35) {          // ซ้ำข้อที่เคยผิดบ้าง
+    const w = QZ.cfg.wrong.map(k => QZ.byKey.get(k)).filter(r => r && pool.includes(r));
+    if (w.length) return w[Math.floor(Math.random() * w.length)];
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function qzGen() {
+  for (let t = 0; t < 60; t++) {
+    const r = qzPickRec(); if (!r) return null;
+    const kind = QZ.cfg.kind === 'mix' ? (Math.random() < .5 ? 'adj' : 'dist') : QZ.cfg.kind;
+    const q = kind === 'adj' ? qzAdj(r) : (r._uniq ? qzDist(r) : null);
+    if (q) { QZ.used.add(r.id); return q; }
+  }
+  return null;
+}
+
+function qzMap() {
+  if (!QZ.map) {
+    QZ.map = L.map('qz-map', { zoomControl: false, attributionControl: true, preferCanvas: true }).setView([13.75, 100.5], 11);
+    QZ.map.attributionControl.setPrefix('');
+    QZ.grp = L.layerGroup().addTo(QZ.map);
+    QZ.rend = L.canvas({ padding: .5 });
+  }
+  QZ.map.invalidateSize();
+}
+function qzLab(rec, txt, clr) {
+  const p = repOf(rec);
+  return L.marker([p[1], p[0]], { icon: L.divIcon({ className: 'lbl zn', html: `<div class="lb" style="color:${clr}">${esc(txt)}</div>`, iconSize: [0, 0] }), interactive: false, keyboard: false });
+}
+function qzDraw(q, answered, pick) {
+  const m = QZ.map, g = QZ.grp, rend = QZ.rend, r = q.rec;
+  g.clearLayers();
+  const [x0, y0, x1, y1] = r._bb, w = Math.max(x1 - x0, y1 - y0) * 0.9 + 0.01;
+  const ex = { _bb: [x0 - w, y0 - w, x1 + w, y1 + w] };
+  const poly = (o, st) => L.polygon(latlngsOf(o), Object.assign({ renderer: rend, interactive: false }, st)).addTo(g);
+  for (const o of DB.recs) {
+    if (o === r || o._bb[0] > ex._bb[2] || o._bb[2] < ex._bb[0] || o._bb[1] > ex._bb[3] || o._bb[3] < ex._bb[1]) continue;
+    poly(o, { color: '#8a949b', weight: .8, fillColor: '#fff', fillOpacity: .25 });
+  }
+  let bounds = [[y0 - w, x0 - w], [y1 + w, x1 + w]];
+  if (answered) {
+    if (q.type === 'adj') {
+      q.nb.forEach(o => { poly(o, { color: '#0b6b3a', weight: 2, fillColor: '#12a154', fillOpacity: .4 }); qzLab(o, o.name, '#0b6b3a').addTo(g); });
+      const bad = pick != null ? q.choices[pick].rec : null;
+      if (bad && !q.nb.includes(bad)) { poly(bad, { color: '#c8321f', weight: 2.5, fillColor: '#c8321f', fillOpacity: .35 }); qzLab(bad, bad.name, '#8c1220').addTo(g); }
+    } else {
+      const chosen = pick != null ? q.choices[pick].grp : null;
+      if (chosen && chosen !== q.grp) chosen.members.forEach(o => poly(o, { color: '#c8321f', weight: 1.5, fillColor: '#c8321f', fillOpacity: .3 }));
+      q.grp.members.forEach(o => poly(o, { color: '#0b6b3a', weight: 1.5, fillColor: '#12a154', fillOpacity: .4 }));
+      const gb = L.latLngBounds([]); q.grp.members.forEach(o => gb.extend([[o._bb[1], o._bb[0]], [o._bb[3], o._bb[2]]]));
+      gb.extend(bounds); bounds = gb;
+    }
+    poly(r, { color: '#1746a2', weight: 4, fillColor: '#1746a2', fillOpacity: .2 });
+    qzLab(r, r.name, '#1746a2').addTo(g);
+  } else {
+    poly(r, { color: '#1746a2', weight: 4, fillColor: '#1746a2', fillOpacity: .25 });
+  }
+  m.fitBounds(bounds, { animate: false, padding: [6, 6] });
+}
+
+function qzShowQ() {
+  const q = QZ.cur = qzGen();
+  if (!q) { QZ.N = QZ.i; qzEnd(); return; }
+  QZ.done = false;
+  $('qz-bar').style.width = (QZ.i / QZ.N * 100) + '%';
+  $('qz-score').textContent = `ข้อ ${QZ.i + 1}/${QZ.N} · ถูก ${QZ.score}`;
+  $('qz-q').innerHTML = q.text;
+  const L3 = ['ก', 'ข', 'ค', 'ง'];
+  $('qz-c').innerHTML = q.choices.map((c, i) => `<button class="qzch" type="button" data-i="${i}"><b>${L3[i]}</b><span>${esc(c.label)}${c.sub ? `<span class="s">${esc(c.sub)}</span>` : ''}</span></button>`).join('');
+  $('qz-fb').hidden = true; $('qz-next').hidden = true;
+  qzMap(); qzDraw(q, false);
+}
+function qzAnswer(i) {
+  if (QZ.done || !QZ.cur) return; QZ.done = true;
+  const q = QZ.cur, ok = q.choices[i].ok;
+  if (ok) QZ.score++;
+  [...$('qz-c').children].forEach((b, k) => { b.disabled = true; if (q.choices[k].ok) b.classList.add('ok'); else if (k === i) b.classList.add('bad'); });
+  const fb = $('qz-fb'); fb.hidden = false; fb.className = 'qzfb ' + (ok ? 'ok' : 'bad');
+  fb.innerHTML = `<b>${ok ? '✓ ถูก' : '✗ ผิด'}</b> — ${esc(q.ans)}`;
+  const k = qzKey(q.rec);
+  QZ.cfg.wrong = QZ.cfg.wrong.filter(x => x !== k);
+  if (!ok) QZ.cfg.wrong.unshift(k);
+  QZ.cfg.wrong = QZ.cfg.wrong.slice(0, 60); qzSave();
+  QZ.results.push({ rec: q.rec, ok, ans: q.ans });
+  $('qz-score').textContent = `ข้อ ${QZ.i + 1}/${QZ.N} · ถูก ${QZ.score}`;
+  $('qz-bar').style.width = ((QZ.i + 1) / QZ.N * 100) + '%';
+  qzDraw(q, true, i);
+  const nx = $('qz-next'); nx.hidden = false; nx.textContent = QZ.i + 1 >= QZ.N ? 'ดูผล' : 'ข้อต่อไป';
+  nx.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+function qzEnd() {
+  $('qz-play').hidden = true; const e = $('qz-end'); e.hidden = false;
+  $('qz-score').textContent = '';
+  const sc = QZ.cfg.scope, total = QZ.results.length || QZ.N;
+  const isBest = QZ.score > (QZ.cfg.best[sc] || 0) && total === 10;
+  if (isBest) { QZ.cfg.best[sc] = QZ.score; qzSave(); }
+  const msg = QZ.score >= 9 ? 'แม่นมาก' : QZ.score >= 7 ? 'ใช้ได้เลย' : QZ.score >= 4 ? 'ยังต้องฝึกอีกหน่อย' : 'เริ่มใหม่ ค่อยๆ จำไป';
+  const wrong = QZ.results.map((x, i) => ({ x, i })).filter(o => !o.x.ok);
+  e.innerHTML = `<div class="qzbig">${QZ.score}/${total}</div><p class="qzmsg">${msg}${isBest ? ' · สถิติใหม่!' : ''}</p>` +
+    (wrong.length ? `<div class="qzh">ข้อที่พลาด (แตะเพื่อดูบนแผนที่หลัก)</div>` + wrong.map(o => `<button class="qzrow" type="button" data-k="${o.i}"><b>${esc(o.x.rec.unit + o.x.rec.name)}</b><span>${esc(o.x.ans)}</span></button>`).join('') : '') +
+    `<button class="go" id="qz-again" type="button">เล่นอีกรอบ</button><button class="qzbtn2" id="qz-home" type="button">เปลี่ยนโหมด</button>`;
+}
+function qzStart() {
+  qzPrep();
+  QZ.N = 10; QZ.i = 0; QZ.score = 0; QZ.used.clear(); QZ.results = [];
+  $('qz-setup').hidden = true; $('qz-end').hidden = true; $('qz-play').hidden = false;
+  qzMap(); qzShowQ();
+}
+function qzSetup() {
+  $('qz-play').hidden = true; $('qz-end').hidden = true; $('qz-setup').hidden = false;
+  $('qz-score').textContent = '';
+  ['scope', 'kind'].forEach(k => $('qzo-' + k).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === QZ.cfg[k]))));
+  const b = QZ.cfg.best[QZ.cfg.scope] || 0;
+  $('qz-best').textContent = b ? `คะแนนสูงสุด (${QZ.cfg.scope === 'bkk' ? 'กทม.' : 'รวมปริมณฑล'}): ${b}/10` : '';
+}
+function qzInit() {
+  ['scope', 'kind'].forEach(k => $('qzo-' + k).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    QZ.cfg[k] = b.dataset.v; qzSave(); qzSetup();
+  }));
+  $('qz-start').addEventListener('click', qzStart);
+  $('qz-c').addEventListener('click', e => { const b = e.target.closest('.qzch'); if (b) qzAnswer(+b.dataset.i); });
+  $('qz-next').addEventListener('click', () => { QZ.i++; if (QZ.i >= QZ.N) qzEnd(); else qzShowQ(); });
+  $('qz-road').addEventListener('click', () => {
+    const on = $('qz-road').getAttribute('aria-pressed') !== 'true';
+    $('qz-road').setAttribute('aria-pressed', String(on));
+    qzMap();
+    if (on) { QZ.tiles = QZ.tiles || L.tileLayer(CONFIG.TILE_URL, { subdomains: 'abc', maxZoom: 19, attribution: '© OpenStreetMap contributors' }); QZ.tiles.addTo(QZ.map); QZ.tiles.bringToBack(); }
+    else if (QZ.tiles) QZ.map.removeLayer(QZ.tiles);
+  });
+  $('qz-end').addEventListener('click', e => {
+    if (e.target.closest('#qz-again')) return qzStart();
+    if (e.target.closest('#qz-home')) return qzSetup();
+    const b = e.target.closest('.qzrow');
+    if (b) { const x = QZ.results[+b.dataset.k]; if (x) previewRec(x.rec); }
+  });
+}
+
+function openDirectory(mode) {
+  const qz = mode === 'qz', v = $('dbview');
+  v.classList.toggle('qzmode', qz);
+  $('qzbody').hidden = !qz;
+  $('db-title').textContent = qz ? 'ทดสอบความจำแขวง' : 'ฐานข้อมูลแขวง/ตำบล';
+  if (qz) { if (!QZ.shown) { QZ.shown = true; qzSetup(); } else if (QZ.map) setTimeout(() => QZ.map.invalidateSize(), 260); } v.classList.add('open'); v.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
 }
 function closeDirectory() {
@@ -1833,7 +2126,15 @@ function wireDirectory() {
     (val, label) => { FAC.dist = val; ddDist.setLabel(label); renderOverview(q.value); syncFclr(); });
 
   fillFacets();
-  $('btn-db').addEventListener('click', openDirectory);
+  const menu = $('menu'), mbtn = $('btn-menu');
+  const setMenu = on => { menu.hidden = !on; mbtn.setAttribute('aria-expanded', String(on)); };
+  mbtn.addEventListener('click', () => setMenu(menu.hidden));
+  menu.addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    setMenu(false); openDirectory(b.dataset.act === 'qz' ? 'qz' : 'db');
+  });
+  document.addEventListener('pointerdown', e => { if (!menu.hidden && !e.target.closest('#menu, #btn-menu')) setMenu(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) setMenu(false); });
   $('db-back').addEventListener('click', closeDirectory);
   const renderActive = () => { renderOverview(q.value); renderDirectory(q.value); syncFclr(); };
   q.addEventListener('input', () => { clr.hidden = !q.value; renderActive(); });
