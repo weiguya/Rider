@@ -390,7 +390,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.17</span>
+      <span class="ver">Ver.18</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-reset" type="button" aria-label="รีเซ็ทเส้นทาง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><span>รีเซ็ต</span>
@@ -1996,13 +1996,21 @@ function qzInD(r) {
     text: `${r.unit}ไหนอยู่ใน<b>${g.distWord}${esc(g.district)}</b>${g.isBkk ? '' : ' จ.' + esc(g.prov)}?`,
     ans: `${r.name} อยู่ใน${g.distWord}${g.district} · ทั้ง${g.distWord}มี: ${nn.slice(0, 10).join(', ')}${nn.length > 10 ? ` …(รวม ${nn.length})` : ''}` };
 }
+// กรอบแผนที่ที่ผู้เล่นเห็นรอบแขวงเป้าหมาย (ใช้ทั้งตอนวาดและตอนเลือกตัวหลอก)
+function qzCtx(r) {
+  const [x0, y0, x1, y1] = r._bb, w = Math.max(x1 - x0, y1 - y0) * 0.9 + 0.01;
+  return { _bb: [x0 - w, y0 - w, x1 + w, y1 + w] };
+}
 function qzMapQ(r) {
-  const p = repOf(r);
-  const near = DB.recs.filter(o => o !== r && o.name !== r.name && o.isBkk === r.isBkk).map(o => { const q = repOf(o); return { o, d: hav(p[0], p[1], q[0], q[1]) }; }).sort((a, b) => a.d - b.d).slice(0, 10).map(x => x.o);
-  const ds = qzUniq(near, 3, [r.name]); if (ds.length < 3) return null;
+  const p = repOf(r), ctx = qzCtx(r);
+  const sorted = DB.recs.filter(o => o !== r && o.name !== r.name && o.isBkk === r.isBkk).map(o => { const q = repOf(o); return { o, d: hav(p[0], p[1], q[0], q[1]) }; }).sort((a, b) => a.d - b.d);
+  // ตัวหลอกต้องอยู่นอกกรอบแผนที่ที่เห็น (ชื่อแขวงรอบๆ ที่โชว์ จะได้ไม่ใช่ตัวเลือก) แต่ยังอยู่แถวใกล้ๆ
+  let pool = [];
+  for (const n of [12, 25, 60]) { pool = sorted.slice(0, n).map(x => x.o).filter(o => !qzBBhit(ctx, o, 0)); if (pool.length >= 3) break; }
+  const ds = qzUniq(pool, 3, [r.name]); if (ds.length < 3) return null;
   const choices = qzShuffle([r, ...ds]).map(o => ({ rec: o, label: o.name, sub: qzSub(o), ok: o === r }));
   return { type: 'map', rec: r, choices,
-    text: `นี่คือ${r.unit}อะไร?<small>ดูรูปร่างบนแผนที่ (ไม่โชว์ชื่อ)</small>`,
+    text: `จุดที่มี <b>?</b> คือ${r.unit}อะไร?<small>ดูชื่อ${r.unit}รอบๆ บนแผนที่ช่วยเดาตำแหน่ง</small>`,
     ans: `นี่คือ ${r.unit}${r.name} (${qzSub(r)})` };
 }
 function qzNearest(r) {
@@ -2114,12 +2122,13 @@ function qzDraw(q, answered, pick) {
   const m = QZ.map, g = QZ.grp, rend = QZ.rend, r = q.rec, T = q.type;
   g.clearLayers();
   const bbs = [r._bb];
+  const chosen0 = pick != null ? q.choices[pick] : null;
+  if (T === 'map' && answered && chosen0 && !chosen0.ok) bbs.push(chosen0.rec._bb);
   if (T === 'inD') q.grp.members.forEach(o => bbs.push(o._bb));
   if (T === 'near' && answered) q.choices.forEach(c => bbs.push(c.rec._bb));
   if (T === 'dup') q.same.forEach(o => bbs.push(o._bb));
   const fb = [Math.min(...bbs.map(b => b[0])), Math.min(...bbs.map(b => b[1])), Math.max(...bbs.map(b => b[2])), Math.max(...bbs.map(b => b[3]))];
-  const w = Math.max(fb[2] - fb[0], fb[3] - fb[1]) * 0.9 + 0.01;
-  const ex = [fb[0] - w, fb[1] - w, fb[2] + w, fb[3] + w];
+  const ex = qzCtx({ _bb: fb })._bb;
   const poly = (o, st) => L.polygon(latlngsOf(o), Object.assign({ renderer: rend, interactive: false }, st)).addTo(g);
   const GREEN = { color: '#0b6b3a', weight: 2, fillColor: '#12a154', fillOpacity: .4 };
   const RED = { color: '#c8321f', weight: 2.5, fillColor: '#c8321f', fillOpacity: .35 };
@@ -2132,6 +2141,7 @@ function qzDraw(q, answered, pick) {
   const chosen = pick != null ? q.choices[pick] : null;
   if (!answered) {
     if (T !== 'inD' && T !== 'dup') poly(r, BLUE);
+    if (T === 'map') qzLab(r, '?', '#1746a2').addTo(g);
   } else if (T === 'adj') {
     q.nb.forEach(o => { poly(o, GREEN); qzLab(o, o.name, '#0b6b3a').addTo(g); });
     if (chosen && !q.nb.includes(chosen.rec)) { poly(chosen.rec, RED); qzLab(chosen.rec, chosen.rec.name, '#8c1220').addTo(g); }
@@ -2162,6 +2172,22 @@ function qzDraw(q, answered, pick) {
     poly(r, BLUE); qzLab(r, r.name, '#1746a2').addTo(g);
   }
   m.fitBounds([[ex[1], ex[0]], [ex[3], ex[2]]], { animate: false, padding: [6, 6] });
+  if (T === 'map') qzNameLabels(q, answered);
+}
+// ป้ายชื่อแขวงรอบๆ (ไม่ทับกัน แขวงใหญ่ได้ที่ก่อน) — ไม่ติดป้ายตัวเลือกและตัวเป้าหมาย
+function qzNameLabels(q, answered) {
+  const m = QZ.map, g = QZ.grp, bnd = m.getBounds(), boxes = [];
+  const pt = o => { const p = repOf(o); return m.latLngToContainerPoint([p[1], p[0]]); };
+  const t = pt(q.rec); boxes.push([t.x, t.y, answered ? q.rec.name.length * 7.5 + 8 : 22, 16]);
+  const skip = new Set(q.choices.map(c => c.rec));
+  const list = DB.recs.filter(o => !skip.has(o) && o !== q.rec).map(o => ({ o, a: (o._bb[2] - o._bb[0]) * (o._bb[3] - o._bb[1]) })).sort((x, y) => y.a - x.a);
+  for (const { o } of list) {
+    const p = repOf(o); if (!bnd.contains([p[1], p[0]])) continue;
+    const c = pt(o), w = o.name.length * 7.5 + 6;
+    if (boxes.some(b => Math.abs(b[0] - c.x) < (b[2] + w) / 2 && Math.abs(b[1] - c.y) < (b[3] + 14) / 2)) continue;
+    boxes.push([c.x, c.y, w, 14]);
+    qzLab(o, o.name, '#3b4a54').addTo(g);
+  }
 }
 
 function qzShowQ() {
