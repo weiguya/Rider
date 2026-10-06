@@ -199,6 +199,9 @@ h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0}
 .qzopts.multi button.all{flex-basis:100%}
 .qzopts button.off{opacity:.45}
 .qzbest{margin:0 0 12px;font-size:14px;color:var(--ink-2)}
+.qzctl{display:flex;gap:8px;margin-bottom:10px}
+.qzctl button{flex:1;min-height:40px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:14px;font-weight:700}
+.qzctl button.ask{border-color:var(--red);color:var(--red)}
 .qzprog{height:6px;border-radius:3px;background:#d3d8dc;margin-bottom:10px;overflow:hidden}
 .qzprog div{height:100%;width:0;background:var(--ink);transition:width .25s}
 .qzmapwrap{position:relative}
@@ -390,7 +393,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.18</span>
+      <span class="ver">Ver.19</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-reset" type="button" aria-label="รีเซ็ทเส้นทาง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><span>รีเซ็ต</span>
@@ -530,6 +533,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
         <button class="go" id="qz-start" type="button">เริ่ม 10 ข้อ</button>
       </div>
       <div id="qz-play" hidden>
+        <div class="qzctl"><button type="button" id="qz-restart">เริ่มใหม่</button><button type="button" id="qz-exit">ออก</button></div>
         <div class="qzprog"><div id="qz-bar"></div></div>
         <div class="qzmapwrap"><div id="qz-map"></div><button class="qzroad" id="qz-road" type="button" aria-pressed="false">ถนน</button></div>
         <div class="qzq" id="qz-q"></div>
@@ -1862,7 +1866,7 @@ function previewRec(rec) {
 }
 
 /* ---------- แบบทดสอบความจำแขวง: ติดกับแขวงไหน / อยู่เขตอะไร (สุ่มสดจากฐานข้อมูล) ---------- */
-const QZ_KINDS = [['adj', 'ติดกับแขวงไหน'], ['nadj', 'ไม่ติดกับแขวงไหน'], ['dist', 'อยู่เขตอะไร'], ['inD', 'แขวงไหนอยู่ในเขต'], ['map', 'ทายจากแผนที่'], ['near', 'ใกล้ที่สุด'], ['prov', 'อยู่จังหวัดอะไร (ปริมณฑล)'], ['dup', 'ชื่อไหนซ้ำ']];
+const QZ_KINDS = [['adj', 'ติดกับแขวงไหน'], ['nadj', 'ไม่ติดกับแขวงไหน'], ['dist', 'อยู่เขตอะไร'], ['inD', 'แขวงไหนอยู่ในเขต'], ['map', 'ทายจากแผนที่'], ['near', 'ใกล้ที่สุด'], ['prov', 'ตำบลนี้จังหวัดอะไร'], ['dup', 'ชื่อไหนซ้ำ']];
 const QZ = { cfg: { scope: 'bkk', kinds: QZ_KINDS.map(k => k[0]), best: { bkk: 0, all: 0 }, wrong: [] }, N: 10, i: 0, score: 0, used: new Set(), cur: null, done: false, results: [], map: null, grp: null, rend: null, tiles: null, groups: null, ready: false };
 try { const c = JSON.parse(localStorage.getItem('rider.quiz') || '{}'); Object.assign(QZ.cfg, c); QZ.cfg.best = Object.assign({ bkk: 0, all: 0 }, c.best || {}); if (!Array.isArray(QZ.cfg.wrong)) QZ.cfg.wrong = []; if (!Array.isArray(QZ.cfg.kinds) || !QZ.cfg.kinds.length) QZ.cfg.kinds = QZ_KINDS.map(k => k[0]); } catch (e) { /* ignore */ }
 const qzSave = () => { try { localStorage.setItem('rider.quiz', JSON.stringify(QZ.cfg)); } catch (e) { /* ignore */ } };
@@ -1923,7 +1927,7 @@ function qzAdj(r) {
   const ds = []; const names = new Set([ok.name]);
   for (const o of qzShuffle(far)) { if (names.has(o.name)) continue; names.add(o.name); ds.push(o); if (ds.length === 3) break; }
   if (ds.length < 3) return null;
-  const choices = qzShuffle([ok, ...ds]).map(o => ({ rec: o, label: o.name, sub: qzSub(o), ok: o === ok }));
+  const choices = qzShuffle([ok, ...ds]).map(o => ({ rec: o, label: o.name, sub: '', ok: o === ok }));
   const nbNames = nb.map(o => o.name);
   return { type: 'adj', rec: r, nb, okRec: ok, choices,
     text: `ข้อไหน<b>ติดกับ</b> ${r.unit}${esc(r.name)}?<small>${esc(qzSub(r))}</small>`,
@@ -1947,8 +1951,8 @@ function qzDist(r) {
     text: `${r.unit}${esc(r.name)}${r.isBkk ? '' : ' จ.' + esc(r.prov)} อยู่<b>${r.distWord}</b>อะไร?`,
     ans: `${r.unit}${r.name} อยู่${g.distWord}${g.district}` };
 }
-function qzPickRec() {
-  const pool = DB.recs.filter(r => (QZ.cfg.scope === 'all' || r.isBkk) && !QZ.used.has(r.id));
+function qzPickRec(provOnly) {
+  const pool = DB.recs.filter(r => (QZ.cfg.scope === 'all' || r.isBkk) && !QZ.used.has(r.id) && (!provOnly || (!r.isBkk && r._gu)));
   if (QZ.cfg.wrong.length && Math.random() < 0.35) {          // ซ้ำข้อที่เคยผิดบ้าง
     const w = QZ.cfg.wrong.map(k => QZ.byKey.get(k)).filter(r => r && pool.includes(r));
     if (w.length) return w[Math.floor(Math.random() * w.length)];
@@ -1977,7 +1981,7 @@ function qzNadj(r) {
   if (nb.length < 3 || !far.length) return null;
   const bad = far[Math.floor(Math.random() * far.length)];
   const ds = qzUniq(nb, 3, [bad.name]); if (ds.length < 3) return null;
-  const choices = qzShuffle([bad, ...ds]).map(o => ({ rec: o, label: o.name, sub: qzSub(o), ok: o === bad }));
+  const choices = qzShuffle([bad, ...ds]).map(o => ({ rec: o, label: o.name, sub: '', ok: o === bad }));
   const nn = nb.map(o => o.name);
   return { type: 'nadj', rec: r, nb, okRec: bad, choices,
     text: `ข้อไหน<b>ไม่ติด</b>กับ ${r.unit}${esc(r.name)}?<small>${esc(qzSub(r))}</small>`,
@@ -2008,7 +2012,7 @@ function qzMapQ(r) {
   let pool = [];
   for (const n of [12, 25, 60]) { pool = sorted.slice(0, n).map(x => x.o).filter(o => !qzBBhit(ctx, o, 0)); if (pool.length >= 3) break; }
   const ds = qzUniq(pool, 3, [r.name]); if (ds.length < 3) return null;
-  const choices = qzShuffle([r, ...ds]).map(o => ({ rec: o, label: o.name, sub: qzSub(o), ok: o === r }));
+  const choices = qzShuffle([r, ...ds]).map(o => ({ rec: o, label: o.name, sub: '', ok: o === r }));
   return { type: 'map', rec: r, choices,
     text: `จุดที่มี <b>?</b> คือ${r.unit}อะไร?<small>ดูชื่อ${r.unit}รอบๆ บนแผนที่ช่วยเดาตำแหน่ง</small>`,
     ans: `นี่คือ ${r.unit}${r.name} (${qzSub(r)})` };
@@ -2021,7 +2025,7 @@ function qzNearest(r) {
   const ds = []; const names = new Set([c.o.name]);
   for (const x of qzShuffle(farther)) { if (names.has(x.o.name)) continue; names.add(x.o.name); ds.push(x); if (ds.length === 3) break; }
   if (ds.length < 3) return null;
-  const choices = qzShuffle([c, ...ds]).map(x => ({ rec: x.o, label: x.o.name, sub: qzSub(x.o), km: x.d, ok: x === c }));
+  const choices = qzShuffle([c, ...ds]).map(x => ({ rec: x.o, label: x.o.name, sub: '', km: x.d, ok: x === c }));
   const byKm = choices.slice().sort((a, b) => a.km - b.km).map(x => `${x.label} ${x.km.toFixed(1)} กม.`).join(' / ');
   return { type: 'near', rec: r, choices,
     text: `ข้อไหน<b>อยู่ใกล้</b> ${r.unit}${esc(r.name)} ที่สุด?<small>${esc(qzSub(r))} · วัดจากจุดกลางแขวง</small>`,
@@ -2090,7 +2094,7 @@ function qzGen() {
   const ks = qzKinds();
   for (let t = 0; t < 80; t++) {
     const kind = ks[Math.floor(Math.random() * ks.length)];
-    const r = kind === 'dup' ? qzPickDup() : qzPickRec(); if (!r) return null;
+    const r = kind === 'dup' ? qzPickDup() : qzPickRec(kind === 'prov'); if (!r) return null;
     let q = null;
     if (kind === 'adj') q = qzAdj(r);
     else if (kind === 'nadj') q = qzNadj(r);
@@ -2248,14 +2252,16 @@ function qzSetup() {
   $('qzo-scope').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === QZ.cfg.scope)));
   const allOn = QZ.cfg.kinds.length === QZ_KINDS.length;
   $('qzo-kind').innerHTML = `<button type="button" class="all" data-v="all" aria-pressed="${allOn}">ทุกแบบ</button>` +
-    QZ_KINDS.map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${!allOn && QZ.cfg.kinds.includes(v)}"${v === 'prov' && QZ.cfg.scope === 'bkk' ? ' class="off"' : ''}>${t}</button>`).join('');
+    QZ_KINDS.map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${!allOn && QZ.cfg.kinds.includes(v)}">${t}</button>`).join('');
   const b = QZ.cfg.best[QZ.cfg.scope] || 0;
   $('qz-best').textContent = b ? `คะแนนสูงสุด (${QZ.cfg.scope === 'bkk' ? 'กทม.' : 'รวมปริมณฑล'}): ${b}/10` : '';
 }
 function qzInit() {
   $('qzo-scope').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    QZ.cfg.scope = b.dataset.v; qzSave(); qzSetup();
+    QZ.cfg.scope = b.dataset.v;
+    if (QZ.cfg.scope === 'bkk' && QZ.cfg.kinds.length === 1 && QZ.cfg.kinds[0] === 'prov') QZ.cfg.kinds = QZ_KINDS.map(k => k[0]);   // กทม. ไม่มีตำบล
+    qzSave(); qzSetup();
   });
   $('qzo-kind').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -2264,9 +2270,21 @@ function qzInit() {
     if (v === 'all') QZ.cfg.kinds = all;
     else if (allOn) QZ.cfg.kinds = [v];                       // จากโหมด "ทุกแบบ" แตะแบบไหน = เลือกเฉพาะแบบนั้น
     else { const st = new Set(QZ.cfg.kinds); if (st.has(v)) { if (st.size > 1) st.delete(v); } else st.add(v); QZ.cfg.kinds = [...st]; }
+    if (v === 'prov' && QZ.cfg.kinds.includes('prov') && QZ.cfg.scope === 'bkk') QZ.cfg.scope = 'all';   // ข้อนี้ต้องมีตำบลปริมณฑล
     qzSave(); qzSetup();
   });
   $('qz-start').addEventListener('click', qzStart);
+  // เริ่มใหม่ / ออก ระหว่างเล่น — ถ้าเล่นไปแล้วต้องแตะ 2 ครั้ง กันมือลั่น
+  const sure = (btn, label, fn) => {
+    let t = 0;
+    btn.addEventListener('click', () => {
+      if (!(QZ.i > 0 || QZ.done) || btn.classList.contains('ask')) { clearTimeout(t); btn.classList.remove('ask'); btn.textContent = label; return fn(); }
+      btn.classList.add('ask'); btn.textContent = 'แตะอีกที เพื่อยืนยัน';
+      t = setTimeout(() => { btn.classList.remove('ask'); btn.textContent = label; }, 2500);
+    });
+  };
+  sure($('qz-restart'), 'เริ่มใหม่', qzStart);
+  sure($('qz-exit'), 'ออก', qzSetup);
   $('qz-c').addEventListener('click', e => { const b = e.target.closest('.qzch'); if (b) qzAnswer(+b.dataset.i); });
   $('qz-next').addEventListener('click', () => { QZ.i++; if (QZ.i >= QZ.N) qzEnd(); else qzShowQ(); });
   $('qz-road').addEventListener('click', () => {
