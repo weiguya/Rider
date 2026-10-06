@@ -393,7 +393,7 @@ h2{margin:14px 0 6px;font-size:14.5px;font-weight:700}
   <header class="search loading" id="search">
     <div class="titlerow">
       <h1>ไล่แขวง</h1>
-      <span class="ver">Ver.19</span>
+      <span class="ver">Ver.20</span>
       <div class="tbtns">
         <button class="tbtn" id="btn-reset" type="button" aria-label="รีเซ็ทเส้นทาง">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><span>รีเซ็ต</span>
@@ -2218,7 +2218,7 @@ function qzAnswer(i) {
   QZ.cfg.wrong = QZ.cfg.wrong.filter(x => x !== k);
   if (!ok) QZ.cfg.wrong.unshift(k);
   QZ.cfg.wrong = QZ.cfg.wrong.slice(0, 60); qzSave();
-  QZ.results.push({ rec: q.rec, ok, ans: q.ans });
+  QZ.results.push({ rec: q.rec, ok, ans: q.ans, q: q.text.replace(/<small>.*?<\/small>/g, '').replace(/<[^>]+>/g, ''), pick: q.choices[i].label, right: (q.choices.find(c => c.ok) || {}).label });
   $('qz-score').textContent = `ข้อ ${QZ.i + 1}/${QZ.N} · ถูก ${QZ.score}`;
   $('qz-bar').style.width = ((QZ.i + 1) / QZ.N * 100) + '%';
   $('qz-map').parentElement.hidden = false; qzMap();
@@ -2237,7 +2237,7 @@ function qzEnd() {
   const msg = QZ.score >= 9 ? 'แม่นมาก' : QZ.score >= 7 ? 'ใช้ได้เลย' : QZ.score >= 4 ? 'ยังต้องฝึกอีกหน่อย' : 'เริ่มใหม่ ค่อยๆ จำไป';
   const wrong = QZ.results.map((x, i) => ({ x, i })).filter(o => !o.x.ok);
   e.innerHTML = `<div class="qzbig">${QZ.score}/${total}</div><p class="qzmsg">${msg}${isBest ? ' · สถิติใหม่!' : ''}</p>` +
-    (wrong.length ? `<div class="qzh">ข้อที่พลาด (แตะเพื่อดูบนแผนที่หลัก)</div>` + wrong.map(o => `<button class="qzrow" type="button" data-k="${o.i}"><b>${esc(o.x.rec.unit + o.x.rec.name)}</b><span>${esc(o.x.ans)}</span></button>`).join('') : '') +
+    (wrong.length ? `<div class="qzh">ข้อที่พลาด (แตะเพื่อดูบนแผนที่หลัก)</div>` + wrong.map(o => `<button class="qzrow" type="button" data-k="${o.i}"><b>${o.x.q}</b><span style="color:var(--red)">✗ ตอบ: ${esc(o.x.pick)}</span><span style="color:var(--green)">✓ ที่ถูก: ${esc(o.x.right)}</span><span>${esc(o.x.ans)}</span></button>`).join('') : '') +
     `<button class="go" id="qz-again" type="button">เล่นอีกรอบ</button><button class="qzbtn2" id="qz-home" type="button">เปลี่ยนโหมด</button>`;
 }
 function qzStart() {
